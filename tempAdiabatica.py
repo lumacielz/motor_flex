@@ -25,14 +25,12 @@ data=arq.readlines()
 arq.close()
 #pegando os dados  de temperatura e pressão 
 m_c=float(data[1])
-Temp=[]
-Press=[]
-for t in data[3:303]:
-    Temp.append(float(t))
-Pressure=[]
-for p in data [304:]:
-    Press.append(float(p))
-    
+
+T0=300
+P0=67500
+Temp=[T0]
+Press=[P0]
+
 teta=sp.symbols("teta")
 L=0.144
 D=0.081
@@ -41,6 +39,7 @@ r=11
 s=R*sp.cos(teta)+sp.sqrt(L**2-R**2*(sp.sin(teta))**2)  #deslocamento
 
 Vo=(3.14*D**2/4)*(L+R-s+2*R/(r-1)) #volume 
+
 teta0d= -164
 tetafd=146
 teta_combd=-4
@@ -49,26 +48,21 @@ teta0=radians(teta0d)
 tetaf=radians(tetafd)
 teta_comb=radians(teta_combd)
 delta_teta=radians(delta_tetad)
+
 ti=np.linspace(teta0,teta_comb,100) #fechamento da admissao ate inicio da combustao
 tj=np.linspace(teta_comb,teta_comb+delta_teta,100) #combustao
 tf=np.linspace(teta_comb+delta_teta,tetaf,100) #fim da combustao ate abertura do escapamento
+
 tk=np.ones(len(ti)+len(tj)+len(tf)) 
 tk[:len(ti)]=ti #0 a 99
 tk[len(ti):len(tj)+len(ti)]=tj #100 ao 199
 tk[len(tj)+len(ti):len(tf)+len(tj)+len(ti)]=tf #200 ao 299
+
 V0=Vo.subs(teta,teta0)
 combustivel=input('COMBUSTIVEL: ')
 #definindo composição , Cp's e  entalpias de formação dos combustíveis
 
 if combustivel=="gasolina":
-#combustivel equivalente
-#    carb=6.67
-#    h=12.8
-#    o=0.533  
-#    n=0
-#    OC=9.6
-#    complete_combustion_H2O=6.4
-#    complete_combustion_CO2=6.67
     
     carb=8*0.5462+2*0.4538
     h=18*0.5462+0.4538*6
@@ -87,14 +81,7 @@ if combustivel=="gasolina":
     mcomb=(12*carb+h+16*o)
 
 elif combustivel=="alcool":
-    #combustivel equivalente
-#    OC=3.2
-#    carb=2.15
-#    h=6.62
-#    o=1.23
-#    complete_combustion_CO2=2.15
-#    complete_combustion_H2O=3.31
-    
+
     carb=1.709
     o=1
     h=5.4188
@@ -157,7 +144,9 @@ OC=(complete_combustion_H2O+2*complete_combustion_CO2-o)/2
 #massas moleculares de cada composto e eq do Cp
 T=sp.symbols('T')
 m=[mcomb,32,18,44,28,16,14,46,30,17,2,1,28]
-evolucao=[]
+mols=m_c/m[0]
+total_mass=1*m[0]+OC*m[1]+OC*3.76*m[12]
+
 Cp=a0+a1*sp.log(T)+a2*sp.log(T)**2+a3*sp.log(T)**3+a4*sp.log(T)**4+a5*sp.log(T)**5  #J/molK
 Ru=8.314
 
@@ -190,9 +179,23 @@ composicao_h2=[]
 composicao_h=[]
 composicao_n2=[]
 
-ent=[]
+composicao_comb.append(1 * m[0] / total_mass)
+composicao_o2.append(OC * m[1] / total_mass)
+composicao_h2o.append(0 * m[2] / total_mass)
+composicao_co2.append(0 * m[3] / total_mass)
+composicao_co.append(0 * m[4] / total_mass)
+composicao_o.append(0 * m[5] / total_mass)
+composicao_n.append(0* m[6] / total_mass)
+composicao_no2.append(0 * m[7] / total_mass)
+composicao_no.append(0 * m[8] / total_mass)
+composicao_oh.append(0 * m[9] / total_mass)
+composicao_h2.append(0 * m[10] / total_mass)
+composicao_h.append(0* m[11] / total_mass)
+composicao_n2.append(3.76*OC * m[12] / total_mass)
+
 
 def gibbs (composicoes,P):
+
     Ncomb=composicoes[0]
     NO2=composicoes[1]
     NH2O=composicoes[2]
@@ -207,20 +210,21 @@ def gibbs (composicoes,P):
     NH=composicoes[11]
     NN2=composicoes[12]
     Ntot=sum(composicoes)
-
+   
     deltaG=Ncomb * (gt_comb + float((Decimal(Ncomb) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
-           NCO2 * (gt_co2 + float((Decimal(NCO2) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
-           NH2O * (gt_h2o + float((Decimal(NH2O) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) +\
-           NO2 * (gt_o2 + float((Decimal(NO2) * Decimal("%.15f" % P) / Decimal(Ntot)).ln()))+\
-           NN2 * (gt_n2 + float((Decimal(NN2) * Decimal("%.15f" % P) / Decimal(Ntot)).ln()))+\
-           NCO * (gt_co + float((Decimal(NCO) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
-           NO * (gt_o + float((Decimal(NO) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
-           NN * (gt_n + float((Decimal(NN) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
-           NNO2 * (gt_no2 + float((Decimal(NNO2) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
-           NNO * (gt_no + float((Decimal(NNO) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
-           NOH * (gt_oh + float((Decimal(NOH) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
-           NH2 * (gt_h2 + float((Decimal(NH2) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
-           NH * (gt_h + float((Decimal(NH) * Decimal("%.15f" % P) / Decimal(Ntot)).ln()))
+       NCO2 * (gt_co2 + float((Decimal(NCO2) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
+       NH2O * (gt_h2o + float((Decimal(NH2O) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) +\
+       NO2 * (gt_o2 + float((Decimal(NO2) * Decimal("%.15f" % P) / Decimal(Ntot)).ln()))+\
+       NN2 * (gt_n2 + float((Decimal(NN2) * Decimal("%.15f" % P) / Decimal(Ntot)).ln()))+\
+       NCO * (gt_co + float((Decimal(NCO) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
+       NO * (gt_o + float((Decimal(NO) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
+       NN * (gt_n + float((Decimal(NN) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
+       NNO2 * (gt_no2 + float((Decimal(NNO2) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
+       NNO * (gt_no + float((Decimal(NNO) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
+       NOH * (gt_oh + float((Decimal(NOH) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
+       NH2 * (gt_h2 + float((Decimal(NH2) * Decimal("%.15f" % P) / Decimal(Ntot)).ln())) + \
+       NH * (gt_h + float((Decimal(NH) * Decimal("%.15f" % P) / Decimal(Ntot)).ln()))
+   
     return (deltaG)
 
 def restricaoC(composicoes):
@@ -255,7 +259,6 @@ def interpolacaoH(i):
     h_o2 = h0_o2 + deltaH0["deltahO2"]
     h_co = h0_co + deltaH0["deltahCO"]
     h_n2 = h0_n2 + deltaH0["deltahN2"]
-    h_comb = h0_comb + sp.integrate(Cp, (T, 298.15, i))
     h_no = h0_no + deltaH0["deltahNO"]
     h_no2 = h0_no2 + deltaH0["deltahNO2"]
     h_oh = h0_oh + deltaH0["deltahOH"]
@@ -263,6 +266,7 @@ def interpolacaoH(i):
     h_h = h0_h + deltaH0["deltahH"]
     h_n = h0_n + deltaH0["deltahN"]
     h_o = h0_o + deltaH0["deltahO"]
+    h_comb = float(h0_comb + sp.integrate(Cp, (T, 298.15, i)))
     
     return h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o
 
@@ -281,9 +285,13 @@ def interpolacaoS(i):
                 deltasH=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['sH'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['sH'][k]
                 deltasN=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['sN'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['sN'][k]
                 deltasO=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['sO'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['sO'][k]
-    return {"deltasH2O":deltasH2O,"deltasCO2":deltasCO2,"deltasO2":deltasO2,"deltasCO":deltasCO,"deltasN2":deltasN2,"deltasNO":deltasNO,"deltasNO2":deltasNO2,"deltasOH":deltasOH,"deltasH2":deltasH2,"deltasH":deltasH,"deltasN":deltasN,"deltasO":deltasO}
+          
+                deltasComb=float(s0_comb + sp.integrate(Cp/T,(T,298.15,i)))
+                
+    return {"deltasComb":deltasComb,"deltasH2O":deltasH2O,"deltasCO2":deltasCO2,"deltasO2":deltasO2,"deltasCO":deltasCO,"deltasN2":deltasN2,"deltasNO":deltasNO,"deltasNO2":deltasNO2,"deltasOH":deltasOH,"deltasH2":deltasH2,"deltasH":deltasH,"deltasN":deltasN,"deltasO":deltasO}
 
-def temperaturaAdiabatica(composicao,T1,T0):
+def temperaturaAdiabatica(composicao,T0,T1):
+    
     Ncomb=composicao[0]
     NO2=composicao[1]
     NH2O=composicao[2]
@@ -302,7 +310,7 @@ def temperaturaAdiabatica(composicao,T1,T0):
         h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o=interpolacaoH(T0)
         entalpy_products0=Ncomb*h_comb+NO2*h_o2+NH2O*h_h2o+NCO2*h_co2+NCO*h_co+NO*h_o+NN*h_n+NNO2*h_no2+NNO*h_no+NOH*h_oh+NH2*h_h2+NH*h_h+NN2*h_n2
         zero0=entalpy_products0-entalpy_reactants
-
+        
         h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o=interpolacaoH(T1)
         entalpy_products1=Ncomb*h_comb+NO2*h_o2+NH2O*h_h2o+NCO2*h_co2+NCO*h_co+NO*h_o+NN*h_n+NNO2*h_no2+NNO*h_no+NOH*h_oh+NH2*h_h2+NH*h_h+NN2*h_n2
         zero1=entalpy_products1-entalpy_reactants
@@ -316,160 +324,144 @@ def temperaturaAdiabatica(composicao,T1,T0):
             T1=nextT
     return nextT
 
+entalpy_reactants=interpolacaoH(T0)[5]+OC*interpolacaoH(T0)[2]+3.76*OC*interpolacaoH(T0)[4]
+ent_prod=[entalpy_reactants*mols]
 
 bnds=((0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None))
 cons=[{'type': 'eq', 'fun': restricaoC},{'type': 'eq', 'fun': restricaoO},{'type': 'eq', 'fun':restricaoH},{'type': 'eq','fun':restricaoN}]
-initial=[]
-estimative = (sys.float_info.min, sys.float_info.min, complete_combustion_H2O, complete_combustion_CO2, sys.float_info.min, sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,3.76*OC)
-ent_prod=[]
-mols=m_c/m[0]
-for k in range(len(tk)):
-    
-    deltaS=interpolacaoS(float(Temp[k]))
-    constant=Ru*Temp[k]
-    P=Press[k]*9.86923*10**-6
-    h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o=interpolacaoH(Temp[k])
-    deltasComb=s0_comb + sp.integrate(Cp/T,(T,298.15,Temp[k]))
 
-    gt_comb=(h_comb-Temp[k]*deltasComb)/constant
-    gt_o2=(h_o2-Temp[k]*deltaS["deltasO2"])/constant
-    gt_h2o=(h_h2o-Temp[k]*deltaS["deltasH2O"])/constant
-    gt_co2=(h_co2-Temp[k]*deltaS["deltasCO2"])/constant
-    gt_co=(h_co-Temp[k]*deltaS["deltasCO"])/constant
-    gt_n2=(h_n2-Temp[k]*deltaS["deltasN2"])/constant
-    gt_no = (h_no - Temp[k] * deltaS["deltasNO"]) / constant
-    gt_no2 = (h_no2 - Temp[k] * deltaS["deltasNO2"]) / constant
-    gt_oh = (h_oh - Temp[k] * deltaS["deltasOH"]) / constant
-    gt_h2 = (h_h2 - Temp[k] * deltaS["deltasH2"])/ constant
-    gt_h = (h_h - Temp[k] * deltaS["deltasH"]) / constant
-    gt_n = (h_n - Temp[k] * deltaS["deltasN"]) / constant
-    gt_o = (h_o - Temp[k] * deltaS["deltasO"]) / constant
+estimative0 = (sys.float_info.min, sys.float_info.min, complete_combustion_H2O, complete_combustion_CO2, sys.float_info.min, sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,3.76*OC)
+#estimative0 = (sys.float_info.min, sys.float_info.min, complete_combustion_H2O, 0, 0, sys.float_info.min, sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,0,sys.float_info.min,3.76*OC)
+def composicaoAdiabatica(estimative,T0,P0,V):
+    while True:
+        
+        deltaS=interpolacaoS(T0)
+        constant=Ru*T0
+        P=P0*9.86923*10**-6
+        
+        h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o=interpolacaoH(T0)
     
-    if k<99:
-        total_mass=1*m[0]+OC*m[1]+OC*3.76*m[12]
-        composicao_comb.append(1 * m[0] / total_mass)
-        composicao_o2.append(OC * m[1] / total_mass)
-        composicao_h2o.append(0 * m[2] / total_mass)
-        composicao_co2.append(0 * m[3] / total_mass)
-        composicao_co.append(0 * m[4] / total_mass)
-        composicao_o.append(0 * m[5] / total_mass)
-        composicao_n.append(0* m[6] / total_mass)
-        composicao_no2.append(0 * m[7] / total_mass)
-        composicao_no.append(0 * m[8] / total_mass)
-        composicao_oh.append(0 * m[9] / total_mass)
-        composicao_h2.append(0 * m[10] / total_mass)
-        composicao_h.append(0* m[11] / total_mass)
-        composicao_n2.append(3.76*OC * m[12] / total_mass)
-        entalpy_reactants=h_comb+OC*h_o2+3.76*OC*h_n2
-        ent_prod.append(entalpy_reactants*mols)
-
-    elif k>=99 and k<=199:
+        gt_comb=(h_comb-T0*deltaS["deltasComb"])/constant
+        gt_o2=(h_o2-T0*deltaS["deltasO2"])/constant
+        gt_h2o=(h_h2o-T0*deltaS["deltasH2O"])/constant
+        gt_co2=(h_co2-T0*deltaS["deltasCO2"])/constant
+        gt_co=(h_co-T0*deltaS["deltasCO"])/constant
+        gt_n2=(h_n2-T0*deltaS["deltasN2"])/constant
+        gt_no = (h_no - T0 * deltaS["deltasNO"]) / constant
+        gt_no2 = (h_no2 - T0 * deltaS["deltasNO2"]) / constant
+        gt_oh = (h_oh - T0 * deltaS["deltasOH"]) / constant
+        gt_h2 = (h_h2 - T0 * deltaS["deltasH2"])/ constant
+        gt_h = (h_h - T0 * deltaS["deltasH"]) / constant
+        gt_n = (h_n - T0 * deltaS["deltasN"]) / constant
+        gt_o = (h_o - T0 * deltaS["deltasO"]) / constant
+    
         sol = minimize(gibbs, estimative,args=(P), method='SLSQP', bounds=bnds, constraints=cons)
-        total_mass = sum([sol.x[x] * m[x] for x in range(13)])
         total_mols = sum(i for i in sol.x)
-        estimative=sol.x
-        nextTemp=float(temperaturaAdiabatica(estimative,Temp[k],Temp[k]+1))
         
-        composicao_comb.append(sol.x[0] * m[0] / total_mass)
-        composicao_o2.append(sol.x[1] * m[1] / total_mass)
-        composicao_h2o.append(sol.x[2] * m[2] / total_mass)
-        composicao_co2.append(sol.x[3] * m[3] / total_mass)
-        composicao_co.append(sol.x[4] * m[4] / total_mass)
-        composicao_o.append(sol.x[5] * m[5] / total_mass)
-        composicao_n.append(sol.x[6] * m[6] / total_mass)
-        composicao_no2.append(sol.x[7] * m[7] / total_mass)
-        composicao_no.append(sol.x[8] * m[8] / total_mass)
-        composicao_oh.append(sol.x[9] * m[9] / total_mass)
-        composicao_h2.append(sol.x[10] * m[10] / total_mass)
-        composicao_h.append(sol.x[11] * m[11] / total_mass)
-        composicao_n2.append(sol.x[12] * m[12] / total_mass)
+        nextTemp=float(temperaturaAdiabatica(estimative,T0,T0+1))
+        print(nextTemp)
+        P0=total_mols*Ru*nextTemp/V
         
-        h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o=interpolacaoH(nextTemp) 
+        if abs(nextTemp-T0)<0.5:
+            break
+        else:
+            T0=nextTemp
+            estimative=sol.x
+            
+    return nextTemp,P0,sol.x,total_mols
+    
+
+for k in range(len(tk)):
+   
+    v=Vo.subs(teta,tk[k])
+    Ta,Pa,moles,total_mols=composicaoAdiabatica(estimative0,Temp[k],Press[k],v)
+    
+    estimative0=moles
+    
+    Temp.append(Ta)
+    Press.append(Pa)
+    
+    total_mass = sum([moles[x] * m[x] for x in range(13)])
         
-        entalpy_products=(sol.x[0]*h_comb+sol.x[1]*h_o2+sol.x[2]*h_h2o+sol.x[3]*h_co2+sol.x[4]*h_co+sol.x[5]*h_o+sol.x[6]*h_n+sol.x[7]*h_no2+sol.x[8]*h_no+sol.x[9]*h_oh+sol.x[10]*h_h2+sol.x[11]*h_h+sol.x[12]*h_n2)*mols
-        ent_prod.append(entalpy_products)
-        print(entalpy_products)
-        
-        Temp[k+1]=nextTemp
-        v=Vo.subs(teta,tk[k+1])
-        Press[k+1]=total_mols*Ru*Temp[k+1]/v
-        
-        print({'MASS_FRACTION':{'Combustivel': sol.x[0] * m[0] / total_mass, 'O2': sol.x[1] * m[1] / total_mass,
-           'H2O': sol.x[2] * m[2] / total_mass, 'CO2': sol.x[3] * m[3] / total_mass, 'CO': sol.x[4] * m[4] / total_mass,'O':sol.x[5] * m[5] / total_mass,'N':sol.x[6] * m[6] / total_mass,'NO2':sol.x[7] * m[7] / total_mass,'NO':sol.x[8] * m[8] / total_mass,'OH':sol.x[9] * m[9] / total_mass,'H2':sol.x[10] * m[10] / total_mass,'H':sol.x[11] * m[11] / total_mass,'N2':sol.x[12] * m[12] / total_mass}})
-        print({'MOLAR_FRACTION':{'Combustivel': sol.x[0] / total_mols, 'O2': sol.x[1] / total_mols, 'H2O': sol.x[2] / total_mols, 'CO2':sol.x[3]/total_mols, 'CO':sol.x[4]/total_mols,'O':sol.x[5]/ total_mols,'N':sol.x[6]/total_mols,'NO2':sol.x[7]/total_mols,'NO':sol.x[8]/ total_mols,'OH':sol.x[9]/ total_mols,'H2':sol.x[10]/ total_mols,'H':sol.x[11]/ total_mols,'N2':sol.x[12]/ total_mols}})
-    else:
-        composicao_comb.append(sol.x[0] * m[0] / total_mass)
-        composicao_o2.append(sol.x[1] * m[1] / total_mass)
-        composicao_h2o.append(sol.x[2] * m[2] / total_mass)
-        composicao_co2.append(sol.x[3] * m[3] / total_mass)
-        composicao_co.append(sol.x[4] * m[4] / total_mass)
-        composicao_o.append(sol.x[5] * m[5] / total_mass)
-        composicao_n.append(sol.x[6] * m[6] / total_mass)
-        composicao_no2.append(sol.x[7] * m[7] / total_mass)
-        composicao_no.append(sol.x[8] * m[8] / total_mass)
-        composicao_oh.append(sol.x[9] * m[9] / total_mass)
-        composicao_h2.append(sol.x[10] * m[10] / total_mass)
-        composicao_h.append(sol.x[11] * m[11] / total_mass)
-        composicao_n2.append(sol.x[12] * m[12] / total_mass)
-        entalpy_products=(sol.x[0]*h_comb+sol.x[1]*h_o2+sol.x[2]*h_h2o+sol.x[3]*h_co2+sol.x[4]*h_co+sol.x[5]*h_o+sol.x[6]*h_n+sol.x[7]*h_no2+sol.x[8]*h_no+sol.x[9]*h_oh+sol.x[10]*h_h2+sol.x[11]*h_h+sol.x[12]*h_n2)*mols
-        
-        
+    composicao_comb.append(moles[0] * m[0] / total_mass)
+    composicao_o2.append(moles[1] * m[1] / total_mass)
+    composicao_h2o.append(moles[2] * m[2] / total_mass)
+    composicao_co2.append(moles[3] * m[3] / total_mass)
+    composicao_co.append(moles[4] * m[4] / total_mass)
+    composicao_o.append(moles[5] * m[5] / total_mass)
+    composicao_n.append(moles[6] * m[6] / total_mass)
+    composicao_no2.append(moles[7] * m[7] / total_mass)
+    composicao_no.append(moles[8] * m[8] / total_mass)
+    composicao_oh.append(moles[9] * m[9] / total_mass)
+    composicao_h2.append(moles[10] * m[10] / total_mass)
+    composicao_h.append(moles[11]* m[11] / total_mass)
+    composicao_n2.append(moles[12] * m[12] / total_mass)
+    
+    h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o=interpolacaoH(Ta) 
+    
+    entalpy_products=(moles[0]*h_comb+moles[1]*h_o2+moles[2]*h_h2o+moles[3]*h_co2+moles[4]*h_co+moles[5]*h_o+moles[6]*h_n+moles[7]*h_no2+moles[8]*h_no+moles[9]*h_oh+moles[10]*h_h2+moles[11]*h_h+moles[12]*h_n2)*mols
+    ent_prod.append(entalpy_products)
+    
+    print({'MASS_FRACTION':{'Combustivel': composicao_comb[k+1], 'O2':composicao_o2[k+1],
+       'H2O':composicao_h2o[k+1], 'CO2': composicao_co2[k+1], 'CO': composicao_co[k+1],'O':composicao_o[k+1],'N':composicao_n[k+1],'NO2':composicao_no2[k+1],'NO':composicao_no[k+1],'OH':composicao_oh[k+1],'H2':composicao_h2[k+1],'H':composicao_h[k+1],'N2':composicao_n2[k+1]}})
+    print({'MOLAR_FRACTION':{'Combustivel': moles[0] / total_mols, 'O2': moles[1] / total_mols, 'H2O': moles[2] / total_mols, 'CO2':moles[3]/total_mols, 'CO':moles[4]/total_mols,'O':moles[5]/ total_mols,'N':moles[6]/total_mols,'NO2':moles[7]/total_mols,'NO':moles[8]/ total_mols,'OH':moles[9]/ total_mols,'H2':moles[10]/ total_mols,'H':moles[11]/ total_mols,'N2':moles[12]/ total_mols}})
+
+    print("TEMPERATURA ADIABATICA: "+str(Ta))
 #plot das entalpias instantaneas
 fig=plt.figure(figsize=(10,7))
 ax=fig.add_subplot(1,1,1)
-ax.scatter(Temp[:99],list(map(lambda x:x*10**3,ent_prod[:99])),color="c")
-ax.scatter(Temp[99:200],list(map(lambda x:x*10**3,ent_prod[99:200])),color="m")
-ax.#scatter(Temp[200:300],list(map(lambda x:x*10**3,ent_prod[200:300])),color="y")
+
+ax.scatter(Temp,list(map(lambda x:x*10**3,ent_prod)),color="y")
 ax.legend(['Entalpias'])
 
 fig2=plt.figure(figsize=(15,10))
 
 plot=fig2.add_subplot(3,4,1)
-plot.plot(Temp[99:200],composicao_comb[99:200],'o')
+plot.plot(Temp[1:] ,composicao_comb[1:],'o')
 plot.legend(['Combustível'])
 
 plot=fig2.add_subplot(3,4,2)
-plot.plot(Temp[99:200],composicao_o2[99:200],'o')
+plot.plot(Temp[1:],composicao_o2[1:],'o')
 plot.legend(['O2'])
 
 plot=fig2.add_subplot(3,4,3)
-plot.plot(Temp[99:200],composicao_h2o[99:200],'o')
+plot.plot(Temp[1:],composicao_h2o[1:],'o')
 plot.legend(['H2O'])
 
 plot=fig2.add_subplot(3,4,4)
-plot.plot(Temp[99:200],composicao_co2[100:200],'o')
+plot.plot(Temp[1:],composicao_co2[1:],'o')
 plot.legend(['CO2'])
 
 plot=fig2.add_subplot(3,4,5)
-plot.plot(Temp[99:200],composicao_co[99:200],'o')
+plot.plot(Temp[1:],composicao_co[1:],'o')
 plot.legend(['CO'])
 
 plot=fig2.add_subplot(3,4,6)
-plot.plot(Temp[99:200],composicao_o[99:200],'o')
+plot.plot(Temp[1:],composicao_o[1:],'o')
 plot.legend(['O'])
 
 plot=fig2.add_subplot(3,4,7)
-plot.plot(Temp[99:200],composicao_n[99:200],'o')
+plot.plot(Temp[1:],composicao_n[1:],'o')
 plot.legend(['N'])
 
 plot=fig2.add_subplot(3,4,8)
-plot.plot(Temp[99:200],composicao_no2[99:200],'o')
+plot.plot(Temp[1:],composicao_no2[1:],'o')
 plot.legend(['NO2'])
 
 plot=fig2.add_subplot(3,4,9)
-plot.plot(Temp[99:200],composicao_no[99:200],'o')
+plot.plot(Temp[1:],composicao_no[1:],'o')
 plot.legend(['NO'])
 
 plot=fig2.add_subplot(3,4,10)
-plot.plot(Temp[99:200],composicao_oh[99:200],'o')
+plot.plot(Temp[1:],composicao_oh[1:],'o')
 plot.legend(['OH'])
 
 plot=fig2.add_subplot(3,4,11)
-plot.plot(Temp[99:200],composicao_h2[99:200],'o')
+plot.plot(Temp[1:],composicao_h2[1:],'o')
 plot.legend(['H2'])
 
 plot=fig2.add_subplot(3,4,12)
-plot.plot(Temp[99:200],composicao_h[99:200],'o')
+plot.plot(Temp[1:],composicao_h[1:],'o')
 plot.legend(['H'])
 #plt.subplot(3,4,13)
 #plot=fig2.add_subplot(3,4,1)
