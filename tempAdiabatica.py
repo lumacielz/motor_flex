@@ -25,7 +25,10 @@ data=arq.readlines()
 arq.close()
 #pegando os dados  de temperatura e pressão 
 m_c=float(data[1])
-
+T0=float(input("Temperatura inicial: "))
+P0=float(input("Pressão inicial: "))
+#estimative=input("Estimativa inicial [Combustivel,O2,H2O,CO2,CO,O,N,NO2,NO,OH,H2,H,N2]: ")
+#estimative0=[float(x) for x in estimative.split(",")]
 T0=300
 P0=67500
 Temp=[T0]
@@ -132,7 +135,14 @@ elif combustivel=="GNV":
     h0_comb=met*h0_met+et*h0_et+prop*h0_prop+but*h0_but+co2*h0_co2+r*h0_n2
     s0_comb=met*s0_met+et*s0_et+prop*s0_prop+but*s0_but+co2*s0_co2+r*s0_n2
     mcomb=(met*16+et*30+prop*44+but*58+co2*44+28*r)
-
+    
+elif combustivel=="H2":
+    h=2
+    carb=0
+    o=0
+    mcomb=2
+    h0_comb=0
+    
 else:
     print("digite um combustível válido!!!")
 
@@ -145,9 +155,11 @@ OC=(complete_combustion_H2O+2*complete_combustion_CO2-o)/2
 T=sp.symbols('T')
 m=[mcomb,32,18,44,28,16,14,46,30,17,2,1,28]
 mols=m_c/m[0]
-total_mass=1*m[0]+OC*m[1]+OC*3.76*m[12]
+total_mass=mols*(1*m[0]+OC*m[1]+OC*3.76*m[12])
 
 Cp=a0+a1*sp.log(T)+a2*sp.log(T)**2+a3*sp.log(T)**3+a4*sp.log(T)**4+a5*sp.log(T)**5  #J/molK
+if combustivel=="H2":
+    Cp=0
 Ru=8.314
 
 #entalpias de formacao 
@@ -179,8 +191,8 @@ composicao_h2=[]
 composicao_h=[]
 composicao_n2=[]
 
-composicao_comb.append(1 * m[0] / total_mass)
-composicao_o2.append(OC * m[1] / total_mass)
+composicao_comb.append(mols * m[0] / total_mass)
+composicao_o2.append(mols*OC * m[1] / total_mass)
 composicao_h2o.append(0 * m[2] / total_mass)
 composicao_co2.append(0 * m[3] / total_mass)
 composicao_co.append(0 * m[4] / total_mass)
@@ -191,7 +203,7 @@ composicao_no.append(0 * m[8] / total_mass)
 composicao_oh.append(0 * m[9] / total_mass)
 composicao_h2.append(0 * m[10] / total_mass)
 composicao_h.append(0* m[11] / total_mass)
-composicao_n2.append(3.76*OC * m[12] / total_mass)
+composicao_n2.append(mols*3.76*OC * m[12] / total_mass)
 
 
 def gibbs (composicoes,P):
@@ -228,30 +240,30 @@ def gibbs (composicoes,P):
     return (deltaG)
 
 def restricaoC(composicoes):
-    return carb-composicoes[0]*carb-composicoes[3]-composicoes[4]
+    return mols*carb-composicoes[0]*carb-composicoes[3]-composicoes[4]
 def restricaoO(composicoes):
-    return o+2*OC-composicoes[0]*o-2*composicoes[1]-composicoes[2]-composicoes[4]-composicoes[3]*2-composicoes[5]-2*composicoes[7]-composicoes[8]-composicoes[9]
+    return mols*(o+2*OC)-composicoes[0]*o-2*composicoes[1]-composicoes[2]-composicoes[4]-composicoes[3]*2-composicoes[5]-2*composicoes[7]-composicoes[8]-composicoes[9]
 def restricaoH(composicoes):
-    return h-h*composicoes[0]-2*composicoes[2]-composicoes[9]-2*composicoes[10]-composicoes[11]
+    return mols*h-h*composicoes[0]-2*composicoes[2]-composicoes[9]-2*composicoes[10]-composicoes[11]
 def restricaoN(composicoes):
-    return OC*3.76*2+n-n*composicoes[0]-composicoes[12]*2-composicoes[6]-composicoes[7]-composicoes[8]
+    return mols*(OC*3.76*2+n)-n*composicoes[0]-composicoes[12]*2-composicoes[6]-composicoes[7]-composicoes[8]
 
 def interpolacaoH(i):
     for k in range(36):
-            if i>=df2['T'][k] and i<=df2['T'][k+1]:
-                deltahH2O=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hH2O'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hH2O'][k]
-                deltahCO2=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hCO2'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hCO2'][k]
-                deltahO2=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hO2'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hO2'][k]
-                deltahCO=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hCO'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hCO'][k]
-                deltahN2=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hN2'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hN2'][k]
-                deltahNO=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hNO'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hNO'][k]
-                deltahNO2=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hNO2'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hNO2'][k]
-                deltahOH=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hOH'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hOH'][k]
-                deltahH2=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hH2'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hH2'][k]
-                deltahH=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hH'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hH'][k]
-                deltahN=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hN'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hN'][k]
-                deltahO=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hO'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hO'][k]
-                
+        if i>=df2['T'][k] and i<=df2['T'][k+1]:
+            deltahH2O=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hH2O'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hH2O'][k]
+            deltahCO2=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hCO2'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hCO2'][k]
+            deltahO2=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hO2'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hO2'][k]
+            deltahCO=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hCO'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hCO'][k]
+            deltahN2=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hN2'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hN2'][k]
+            deltahNO=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hNO'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hNO'][k]
+            deltahNO2=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hNO2'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hNO2'][k]
+            deltahOH=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hOH'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hOH'][k]
+            deltahH2=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hH2'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hH2'][k]
+            deltahH=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hH'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hH'][k]
+            deltahN=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hN'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hN'][k]
+            deltahO=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['hO'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['hO'][k]
+            
     deltaH0={"deltahH2O":deltahH2O,"deltahCO2":deltahCO2,"deltahO2":deltahO2,"deltahCO":deltahCO,"deltahN2":deltahN2,"deltahNO":deltahNO,"deltahNO2":deltahNO2,"deltahOH":deltahOH,"deltahH2":deltahH2,"deltahH":deltahH,"deltahN":deltahN,"deltahO":deltahO}
         
     h_h2o = h0_h2o + deltaH0["deltahH2O"]
@@ -266,7 +278,11 @@ def interpolacaoH(i):
     h_h = h0_h + deltaH0["deltahH"]
     h_n = h0_n + deltaH0["deltahN"]
     h_o = h0_o + deltaH0["deltahO"]
-    h_comb = float(h0_comb + sp.integrate(Cp, (T, 298.15, i)))
+    if combustivel=="H2":
+        h_comb=h_h2
+        h_h2=0
+    else:
+        h_comb = float(h0_comb + sp.integrate(Cp, (T, 298.15, i)))
     
     return h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o
 
@@ -285,8 +301,11 @@ def interpolacaoS(i):
                 deltasH=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['sH'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['sH'][k]
                 deltasN=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['sN'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['sN'][k]
                 deltasO=((i-df2['T'][k])/(df2['T'][k+1]-df2['T'][k]))*df2['sO'][k+1]+((df2['T'][k+1]-i)/(df2['T'][k+1]-df2['T'][k]))*df2['sO'][k]
-          
-                deltasComb=float(s0_comb + sp.integrate(Cp/T,(T,298.15,i)))
+                if combustivel=="H2":
+                    deltasComb=deltasH2
+                    deltasH2=0
+                else:
+                    deltasComb=float(s0_comb + sp.integrate(Cp/T,(T,298.15,i)))
                 
     return {"deltasComb":deltasComb,"deltasH2O":deltasH2O,"deltasCO2":deltasCO2,"deltasO2":deltasO2,"deltasCO":deltasCO,"deltasN2":deltasN2,"deltasNO":deltasNO,"deltasNO2":deltasNO2,"deltasOH":deltasOH,"deltasH2":deltasH2,"deltasH":deltasH,"deltasN":deltasN,"deltasO":deltasO}
 
@@ -314,7 +333,7 @@ def temperaturaAdiabatica(composicao,T0,T1):
         h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o=interpolacaoH(T1)
         entalpy_products1=Ncomb*h_comb+NO2*h_o2+NH2O*h_h2o+NCO2*h_co2+NCO*h_co+NO*h_o+NN*h_n+NNO2*h_no2+NNO*h_no+NOH*h_oh+NH2*h_h2+NH*h_h+NN2*h_n2
         zero1=entalpy_products1-entalpy_reactants
-        
+        print(zero0,zero1)
         nextT=T1-zero1*(T1-T0)/(zero1-zero0)
         
         if abs(zero1)<0.5:
@@ -324,14 +343,14 @@ def temperaturaAdiabatica(composicao,T0,T1):
             T1=nextT
     return nextT
 
-entalpy_reactants=interpolacaoH(T0)[5]+OC*interpolacaoH(T0)[2]+3.76*OC*interpolacaoH(T0)[4]
-ent_prod=[entalpy_reactants*mols]
+entalpy_reactants=(interpolacaoH(T0)[5]+OC*interpolacaoH(T0)[2]+3.76*OC*interpolacaoH(T0)[4])*mols
+ent_prod=[entalpy_reactants]
 
 bnds=((0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None),(0,None))
 cons=[{'type': 'eq', 'fun': restricaoC},{'type': 'eq', 'fun': restricaoO},{'type': 'eq', 'fun':restricaoH},{'type': 'eq','fun':restricaoN}]
 
-estimative0 = (sys.float_info.min, sys.float_info.min, complete_combustion_H2O, complete_combustion_CO2, sys.float_info.min, sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,3.76*OC)
-#estimative0 = (sys.float_info.min, sys.float_info.min, complete_combustion_H2O, 0, 0, sys.float_info.min, sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,0,sys.float_info.min,3.76*OC)
+estimative0 = (sys.float_info.min, sys.float_info.min, complete_combustion_H2O*mols, complete_combustion_CO2*mols, sys.float_info.min, sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,mols*3.76*OC)
+#estimative0 = (sys.float_info.min, sys.float_info.min, complete_combustion_H2O*mols, 0, 0, sys.float_info.min, sys.float_info.min,sys.float_info.min,sys.float_info.min,sys.float_info.min,0,sys.float_info.min,mols*3.76*OC)
 def composicaoAdiabatica(estimative,T0,P0,V):
     while True:
         
@@ -399,7 +418,7 @@ for k in range(len(tk)):
     
     h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o=interpolacaoH(Ta) 
     
-    entalpy_products=(moles[0]*h_comb+moles[1]*h_o2+moles[2]*h_h2o+moles[3]*h_co2+moles[4]*h_co+moles[5]*h_o+moles[6]*h_n+moles[7]*h_no2+moles[8]*h_no+moles[9]*h_oh+moles[10]*h_h2+moles[11]*h_h+moles[12]*h_n2)*mols
+    entalpy_products=(moles[0]*h_comb+moles[1]*h_o2+moles[2]*h_h2o+moles[3]*h_co2+moles[4]*h_co+moles[5]*h_o+moles[6]*h_n+moles[7]*h_no2+moles[8]*h_no+moles[9]*h_oh+moles[10]*h_h2+moles[11]*h_h+moles[12]*h_n2)
     ent_prod.append(entalpy_products)
     
     print({'MASS_FRACTION':{'Combustivel': composicao_comb[k+1], 'O2':composicao_o2[k+1],
