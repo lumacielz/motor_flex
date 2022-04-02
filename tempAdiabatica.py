@@ -67,9 +67,13 @@ combustivel=input('COMBUSTIVEL: ')
 
 if combustivel=="gasolina":
     
-    carb=8*0.5462+2*0.4538
-    h=18*0.5462+0.4538*6
-    o=0.4538
+#    carb=8*0.5462+2*0.4538
+#    h=18*0.5462+0.4538*6
+#    o=0.4538
+#    n=0
+    carb=8
+    h=18
+    o=0
     n=0
     
     a0=-8102.9675849653
@@ -79,8 +83,10 @@ if combustivel=="gasolina":
     a4=-42.2764373650608
     a5=1.35175803975684
     
-    h0_comb=0.5462*(-208450)+0.4538*(-235310)
-    s0_comb=0.5462*(466.514)+0.4538*(282.444)
+    h0_comb=-208450
+    s0_comb=466.514
+#    h0_comb=0.5462*(-208450)+0.4538*(-235310)
+#    s0_comb=0.5462*(466.514)+0.4538*(282.444)
     mcomb=(12*carb+h+16*o)
 
 elif combustivel=="alcool":
@@ -206,8 +212,27 @@ composicao_h.append(0* m[11] / total_mass)
 composicao_n2.append(mols*3.76*OC * m[12] / total_mass)
 
 
-def gibbs (composicoes,P):
+def gibbs (composicoes,T,P):
+    
+    deltaS=interpolacaoS(T)
+    constant=Ru*T
+    
+    h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o=interpolacaoH(T)
 
+    gt_comb=(h_comb-T*deltaS["deltasComb"])/constant
+    gt_o2=(h_o2-T*deltaS["deltasO2"])/constant
+    gt_h2o=(h_h2o-T*deltaS["deltasH2O"])/constant
+    gt_co2=(h_co2-T*deltaS["deltasCO2"])/constant
+    gt_co=(h_co-T*deltaS["deltasCO"])/constant
+    gt_n2=(h_n2-T*deltaS["deltasN2"])/constant
+    gt_no = (h_no - T * deltaS["deltasNO"]) / constant
+    gt_no2 = (h_no2 - T * deltaS["deltasNO2"]) / constant
+    gt_oh = (h_oh - T * deltaS["deltasOH"]) / constant
+    gt_h2 = (h_h2 - T * deltaS["deltasH2"])/ constant
+    gt_h = (h_h - T * deltaS["deltasH"]) / constant
+    gt_n = (h_n - T * deltaS["deltasN"]) / constant
+    gt_o = (h_o - T * deltaS["deltasO"]) / constant
+    
     Ncomb=composicoes[0]
     NO2=composicoes[1]
     NH2O=composicoes[2]
@@ -354,27 +379,9 @@ estimative0 = (sys.float_info.min, sys.float_info.min, complete_combustion_H2O*m
 def composicaoAdiabatica(estimative,T0,P0,V):
     while True:
         
-        deltaS=interpolacaoS(T0)
-        constant=Ru*T0
         P=P0*9.86923*10**-6
         
-        h_h2o,h_co2,h_o2,h_co,h_n2,h_comb,h_no,h_no2,h_oh,h_h2,h_h,h_n,h_o=interpolacaoH(T0)
-    
-        gt_comb=(h_comb-T0*deltaS["deltasComb"])/constant
-        gt_o2=(h_o2-T0*deltaS["deltasO2"])/constant
-        gt_h2o=(h_h2o-T0*deltaS["deltasH2O"])/constant
-        gt_co2=(h_co2-T0*deltaS["deltasCO2"])/constant
-        gt_co=(h_co-T0*deltaS["deltasCO"])/constant
-        gt_n2=(h_n2-T0*deltaS["deltasN2"])/constant
-        gt_no = (h_no - T0 * deltaS["deltasNO"]) / constant
-        gt_no2 = (h_no2 - T0 * deltaS["deltasNO2"]) / constant
-        gt_oh = (h_oh - T0 * deltaS["deltasOH"]) / constant
-        gt_h2 = (h_h2 - T0 * deltaS["deltasH2"])/ constant
-        gt_h = (h_h - T0 * deltaS["deltasH"]) / constant
-        gt_n = (h_n - T0 * deltaS["deltasN"]) / constant
-        gt_o = (h_o - T0 * deltaS["deltasO"]) / constant
-    
-        sol = minimize(gibbs, estimative,args=(P), method='SLSQP', bounds=bnds, constraints=cons)
+        sol = minimize(gibbs, estimative,args=(T0,P), method='SLSQP', bounds=bnds, constraints=cons)
         total_mols = sum(i for i in sol.x)
         
         nextTemp=float(temperaturaAdiabatica(estimative,T0,T0+1))

@@ -9,7 +9,7 @@ from data import *
 import sympy as sp
 from scipy.integrate import odeint,solve_ivp
 from scipy import signal
-
+from math import radians
 teta=sp.symbols("teta")
 Ts=sp.symbols('Ts')
 
@@ -30,17 +30,12 @@ x0=[float(P0),float(T0),Qa0,Qp0,W0] #condicoes iniciais
 print(x0)
 
 ti=np.linspace(teta0,teta_comb,1000) #fechamento da admissao ate inicio da combustao
-tj=np.linspace(teta_comb,teta_comb+delta_teta,100) #combustao
-tf=np.linspace(teta_comb+delta_teta,tetaf,100) #fim da combustao ate abertura do escapamento
+tj=np.linspace(teta_comb,teta_comb+delta_teta,1000) #combustao
+tf=np.linspace(teta_comb+delta_teta,tetaf,1000) #fim da combustao ate abertura do escapamento
 tk=np.ones(len(ti)+len(tj)+len(tf)) 
 tk[:len(ti)]=ti #0 a 99
 tk[len(ti):len(tj)+len(ti)]=tj #100 ao 199
 tk[len(tj)+len(ti):len(tf)+len(tj)+len(ti)]=tf #200 ao 299
-
-aprox=[abs(i-radians(-avanco))for i in ti]
-disp=aprox.index(min(aprox))
-
-Spark=signal.unit_impulse(len(tk),disp)*10000
 
 P=np.ones(len(tk))*P0
 T=np.ones(len(tk))*T0
@@ -52,6 +47,17 @@ T1=np.ones(len(tk))*T0
 
 x0=[float(P0),float(T0),Qa0,Qp0,W0]
 
+
+def find_nearest(array, value):
+    idx = (np.abs(array - value)).argmin()
+    if array[idx]<=value:
+        return idx
+    else:
+        return idx-1
+    
+
+Spark = signal.unit_impulse(len(tk),find_nearest(tk,radians(-avanco)))*10000
+
 def motor(t,x):
     P=x[0]
     T=x[1]
@@ -60,9 +66,9 @@ def motor(t,x):
     W=x[4]
     dWdt=P*dVdt  #joule
     dQpdt=(h*A*(T-Tp)/(N*fcor)) #rads por s
-    dTdt=(((1/(P*V))*(Qtot*dxdt-fcor*dQpdt+spark)-dVdt/V)*(k-1))/((1/T)-(1/(k-1))*dkdT)
-    dPdt=((((Qtot*dxdt-fcor*dQpdt+spark)-P*dVdt)*(k-1))-P*dVdt+(P*V*dkdT*dTdt/(k-1)))/V
-    dQadt=P*dVdt+(1/(k-1))*(V*dPdt+P*dVdt-(P*V*dkdT*dTdt/(k-1)))
+    dTdt=((((1/(P*V))*(Qtot*dxdt-fcor*dQpdt + spark)-dVdt/V)*(k-1))+dkdt/(k-1))*T
+    dPdt=((((Qtot*dxdt-fcor*dQpdt)-P*dVdt + spark)*(k-1))-P*dVdt+(P*V*dkdt/(k-1)))/V
+    dQadt=P*dVdt+(1/(k-1))*(V*dPdt+P*dVdt-(P*V*dkdt/(k-1)))
     return(dPdt,dTdt,dQadt,dQpdt,dWdt)  
 
 def dc (Concentrations,t,T):
@@ -83,24 +89,34 @@ def dc (Concentrations,t,T):
     dH2O=hid/2*ka/N
     return dC,dO2,dCO,dCO2,dH2O
 
+#def dc (C,t,Temp):
+#    O2=12.5*C
+#    dC=-(Ae*exp(-Ea/Temp)*np.sign(C)*abs(C)**me*(O2)**ne)/N
+#    return dC
+#
+#def oneStep(C0,ts,Temperature,Pressure):
+#    x=odeint(dc,C0,ts,args=(Temperature,))
+#    next_c=x[-1]
+#    mass_burned=(m0-(x[-1][0]*8315*Temperature/(Pressure*10**-3))*m_c)/m0
+#    return next_c,mass_burned
+
 def twoStepKinects (Concentrations0,ts,Temperature,Pressure):
     x=odeint(dc,Concentrations0,ts,args=(Temperature,),atol=10**-17,rtol=10**-17)
-    mass_burned=(m0-(x[-1][0]*8315*Temperature*m_cm/(Pressure*10**-3)))/m0
+    mass_burned=(m0-(x[-1][0]*8315*Temperature/(Pressure*10**-3))*m_cm)/m0
     next_t=x[-1]
     return next_t,mass_burned
 
 K=KReag
 k=K.subs(Ts,T0)
-dkdT=sp.diff(K,Ts).subs([(Ts,T0),(teta,teta0)])
+dkdt=sp.diff(K,teta).subs([(Ts,T0),(teta,teta0)])
 
 dxdt=0
 h=0
 
-
 #curva sem combustao
 for l in range(len(tk)-1):
     ts=[tk[l],tk[l+1]]
-    spark=Spark[l]
+    spark = Spark[l]
     x=solve_ivp(motor,ts,x0,rtol=1e-10,atol=1e-10).y
     P1[l+1]=x[0][-1]
     T1[l+1]=x[1][-1]
@@ -110,19 +126,20 @@ for l in range(len(tk)-1):
     A=Ap.subs(teta,tk[l+1])
     dVdt=sp.diff(Vo,teta).subs(teta,ts[-1])
     k=K.subs(Ts,T1[l+1])
-    dkdT=sp.diff(K,Ts).subs([(Ts,T[l+1]),(teta,ts[-1])])
-
+    dkdt=sp.diff(K,teta).subs([(Ts,T1[l+1]),(teta,ts[-1])])
+    
+x0 = [float(P0),float(T0),Qa0,Qp0,W0]
 #fechamento da admissao ao inicio da combustao 
 for i in range(len(ti)-1): 
     ts=[ti[i],ti[i+1]]
-    spark=Spark[i]
+    spark = Spark[i]
     x=solve_ivp(motor,ts,x0,rtol=1e-10,atol=1e-10).y
     P[i+1]=x[0][-1] #ultima linha,coluna1
     T[i+1]=x[1][-1]
     Qa[i+1]=x[2][-1]
     Qp[i+1]=x[3][-1]
     W[i+1]=x[4][-1]
-    
+   
     x0=[x[0][-1],x[1][-1],x[2][-1],x[3][-1],x[4][-1]]
     
     V=Vo.subs(teta,ti[i+1])
@@ -130,29 +147,30 @@ for i in range(len(ti)-1):
     dVdt=sp.diff(Vo,teta).subs(teta,ts[-1])
     
     k=K.subs(Ts,T[i+1])
-    dkdT=sp.diff(K,Ts).subs([(Ts,T[i+1]),(teta,ts[-1])])
+    dkdt=sp.diff(K,teta).subs([(Ts,T[i+1]),(teta,ts[-1])])
     
     vg=2.28*vp
     h=0.013*D**(-0.2)*(P[i+1])**0.8*T[i+1]**(-0.53)*vg**0.8
+    
+    
 
 wiebe=[]
-C0=(1/((1+AC+3.76*AC)))*(P[99]*10**-3/(8314*T[99]))
+C0=(1/((1+AC)+3.76*AC))*(P[999]*10**-3/(8315*T[999]))
 Concentrations0=[C0,AC*C0,0,0,0]
-print(P[99],T[99])
+
 dTdt=motor(ts[1],x0)[1]
 dPdt=motor(ts[1],x0)[0]
-dCdt=dc(Concentrations0,ts[1],T[99])[0]
-print(C0,dCdt)
+dCdt=dc(Concentrations0,ts[1],T[999])[0]
+
 x_teta=(m0-(C0*8315*T[999]/(P[999]*10**-3))*m_cm)/m0
 dxdt=-dCdt*8315*T[999]*m_cm/(P[999]*10**-3*m0)
 #dxdt=-(m_cm*Rg/m0)*(P[99]*(dCdt*T[99]+C*dTdt)-dPdt*C*T[99])/((P[99]*10**-3)**2)
-print(x_teta,float(dxdt))
+print(float(dxdt))
 
 #durante a combustao
 for j in range(len(tk))[len(ti)-1:len(ti)+len(tj)-1]: 
-
     ts=[tk[j],tk[j+1]]
-    spark=Spark[j]
+    spark = Spark[j]
     x=solve_ivp(motor,ts,x0,rtol=1e-10,atol=1e-10).y
     P[j+1]=x[0][-1]
     T[j+1]=x[1][-1]
@@ -165,17 +183,20 @@ for j in range(len(tk))[len(ti)-1:len(ti)+len(tj)-1]:
     A=Ap.subs(teta,tk[j+1])
     dVdt=sp.diff(Vo,teta).subs(teta,ts[-1])
     
-    next_t,x_teta=twoStepKinects(Concentrations0,ts,T[j+1],P[j+1]) #composicao em t[j+1]
-    K=(1-x_teta)*KReag+x_teta*KProd
+    K=KReag+(KProd-KReag)*(teta-teta0)/delta_teta
+    
     k=K.subs([(teta,ts[-1]),(Ts,T[j+1])])
-    dkdT=sp.diff(K,Ts).subs([(Ts,T[j+1]),(teta,ts[-1])])
+    dkdt=sp.diff(K,teta).subs([(Ts,T[j+1]),(teta,ts[-1])])
+    
+    next_t,x_teta=twoStepKinects(Concentrations0,ts,T[j+1],P[j+1]) #composicao em t[j+1]
     
     dCdt=dc(next_t,ts[-1],T[j+1])[0]
     Concentrations0=next_t
     MolarFractions=list(map(lambda x:x*8315*T[j+1]/(P[j+1]*10**-3),next_t))
 
+
     dxdt=-dCdt*8315*T[j+1]*m_cm/(P[j+1]*10**-3*m0)
-  
+    print(dxdt)
     wiebe.append(x_teta)
     
     vg=2.28*vp+0.00324*(P[j+1]-P1[j+1])*Vd*T0/(P0*V0)
@@ -187,7 +208,7 @@ dxdt=0
 #fim da combustao ate abertura do escape
 for f in range(len(tk))[len(tj)+len(ti)-1:len(tk)-1]: #200 ao 298
     ts=[tk[f],tk[f+1]]
-    spark=Spark[f]
+    spark = Spark[f]
     x=solve_ivp(motor,ts,x0,rtol=1e-10,atol=1e-10).y
     P[f+1]=x[0][-1]
     T[f+1]=x[1][-1]
@@ -201,7 +222,7 @@ for f in range(len(tk))[len(tj)+len(ti)-1:len(tk)-1]: #200 ao 298
     dVdt=sp.diff(Vo,teta).subs(teta,ts[-1])
     
     k=K.subs(Ts,T[f+1])
-    dkdT=sp.diff(K,Ts).subs([(Ts,T[f+1]),(teta,ts[-1])])
+    dkdt=sp.diff(K,teta).subs([(Ts,T[f+1]),(teta,ts[-1])])
     
     vg=2.28*vp+0.00324*(P[f+1]-P1[f+1])*Vd*T0/(P0*V0)
     h=0.013*D**-0.2*(P[f+1])**0.8*T[f+1]**-0.53*vg**0.8

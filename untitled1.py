@@ -20,18 +20,18 @@ P0=22
 estimateT=3000
 
 def composicaoCombustivel(c):
-#    coef=[0,0,0,0]
-#    if c.find("C") !=-1:
-#        coef[0]=c.split("C")[1]
-#    if c.find("H") != -1:
-#        coef[1]=c.split("H")[1]
-#    if c.find("O") != -1:
-#        coef[2]=c.split("O")[1]
-#    if c.find("N") != -1:
-#        coef[3]=c.split("N")[1]
+    coef=[0,0,0,0]
+    if c.find("C") !=-1:
+        coef[0]=c.split("C")[1].split("H")
+    if c.find("H") != -1:
+        coef[1]=c.split("H")[1]
+    if c.find("O") != -1:
+        coef[2]=c.split("O")[1]
+    if c.find("N") != -1:
+        coef[3]=c.split("N")[1]
         
-    coef=c.split("C")[1].split("H")
-    coef[1:]=(coef[1].split("O"))
+#    coef=c.split("C")[1].split("H")
+#    coef[1:]=(coef[1].split("O"))
     return list(map(lambda x: float(x),coef))
 
 #comb=input("digite a composição do combustível na forma CnHnOn: ")
