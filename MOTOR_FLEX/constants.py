@@ -54,7 +54,7 @@ N=rotacao*2*np.pi/60 #rad/s
 Vd=np.pi*D**2*R/2 #volume deslocado m^3
 vp=2*S*N #velocidade do pistão m/s
 
-Ru=8.314 #kJ/kmolK
+Ru=8.3142 #kJ/kmolK
 M_air = 28.962
 
 #combustivel = "gasolina"
@@ -73,11 +73,11 @@ def composicaoCombustivel(c):
 while True:
     if combustivel=="gasolina":
     #combustivel equivalente
-    #    carb=6.67
-    #    h=12.8
-    #    o=0.533  
-    #    n=0
-    #    OC=9.6
+        c=6.67
+        h=12.8
+        o=0.533  
+        n=0
+        #OC=9.6
     #    complete_combustion_H2O=6.4
     #    complete_combustion_CO2=6.67
         
@@ -112,7 +112,7 @@ while True:
     #    complete_combustion_CO2=2.15
     #    complete_combustion_H2O=3.31
         
-        c,h,o,n=1.709,5.418801,0
+        c,h,o,n=2.15,6.62,1.23,0
     
         a0=-12482.8740213179
         a1=10263.4623453335
@@ -125,7 +125,7 @@ while True:
         s0_comb=0.8547*(282.444)+0.1453*(188.835)
         mcomb=(12*c+h+16*o)
         
-        #PCI=
+        PCI= 24804*10**3
         
         Ae=(1.8*10**12) #etanol
         Ea=15098
@@ -169,19 +169,29 @@ while True:
         s0_comb=met*s0_met+et*s0_et+prop*s0_prop+but*s0_but+co2*s0_co2+r*s0_n2
         mcomb=(met*16+et*30+prop*44+but*58+co2*44+28*r)
         
-        #PCI =
+        PCI = 48737*10**3
         break 
     
     elif combustivel == "H2":
         c,h,o,n=0,2,0,0
-        mcomb=0
+        mcomb=2
+        a5 = -0.1571988
+        a4 = 5.07583945
+        a3 = -64.62974617
+        a2 = 406.63764375
+        a1 = -1265.40995607
+        a0 = 1586.40614067
+        
+        PCI = 120000*10**3
         break
     elif combustivel == "outro":
         molecularComposition = input("digite a composição do combustível na forma CnHnOn: ")
         c,h,o,n=composicaoCombustivel(molecularComposition),0
         mcomb=c*12+h+o*16
-        h0_comb=float(input("entalpia de formação do combustivel: "))
-        s0_comb=float(input("entropia de formação do combustivel: "))
+        
+        PCI = float(input("Poder Calorífico Inferior: "))
+        #h0_comb=float(input("entalpia de formação do combustivel: "))
+        #s0_comb=float(input("entropia de formação do combustivel: "))
         a0,a1,a2,a3,a4,a5=stringToFloat(input("coeficientes da equação logaritimica de Cp em funcao da temperatura: "))
      
     else:
@@ -194,10 +204,10 @@ M_c=(12.0107*c+h*1.008+16*o+28*n)
 stoichometricH2O = h/2
 stoichometricCO2 = c
 OC = (2*stoichometricCO2 + stoichometricH2O - o)/2 #mols de oxigenio
-stoichometricN2 = 3.772*OC
+stoichometricN2 = 3.773*OC
 
-AC = OC*(32 + 3.772 * 28.16) / M_c  #razao ar combustivel
-M_m=(M_c+OC*(32+3.772*28.16))/(1+OC+OC*3.772)  #massa molecular da mistura
+AC = OC*(32 + 3.773 * 28.16) / M_c  #razao ar combustivel
+M_m=(M_c+OC*(32+3.773*28.16))/(1+OC+OC*3.773)  #massa molecular da mistura
 
 #massa de ar admitida
 m_air=Var/(0.5*3600*cilindros*(N/(2*np.pi))) #rot por s
@@ -217,15 +227,15 @@ Rg=Ru/M_m #constante dos gases
 
 #DADOS PARA WIEBE!
 coefwiebe=input('Coeficientes da equação de Wiebe m , a: ').split(',')
-m=1
-a=2
+m=float(coefwiebe[0])
+a=float(coefwiebe[1])
 ef=0.87
 Qtot=ef*m_c*PCI #kJ
 #spark = 0
 
 #composicao molar inicial
-reactants_composition = np.asarray([mols_c,OC*mols_c,0,0,0,0,0,0,0,0,0,0,3.773*OC*mols_c])
-estimative = np.asarray([mols_c,OC*mols_c,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,3.773*OC*mols_c])
+reactants_composition = np.asarray([mols_c,O,0,0,0,0,0,0,0,0,0,0,3.773*O])
+estimative = np.asarray([mols_c,OC*mols_c,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,3.773*O])
 
 Ts = sp.symbols('Ts')
 Cp=a0+a1*sp.log(Ts)+a2*sp.log(Ts)**2+a3*sp.log(Ts)**3+a4*sp.log(Ts)**4+a5*sp.log(Ts)**5

@@ -195,7 +195,7 @@ def equilibrioAdiabatico(estimative,T,P,reactants_composition,T0):
     while True:
         sol = equilibrium(estimative, T,P)
         total_mols = sum(i for i in sol)
-        #molar_fraction = [s/total_mols for s in sol]
+        molar_fraction = [s/total_mols for s in sol]
         
         nextTemp=float(temperaturaAdiabatica(sol,T,T+2,entalpy_reactants))
         
@@ -205,12 +205,13 @@ def equilibrioAdiabatico(estimative,T,P,reactants_composition,T0):
             T=nextTemp
             estimative=sol
             
-    return nextTemp,sol,total_mols
+    return nextTemp,sol,molar_fraction
 
 cons=[{'type': 'eq', 'fun': restricaoC},{'type': 'eq', 'fun': restricaoO},{'type': 'eq', 'fun':restricaoH},{'type': 'eq', 'fun': restricaoN}]
 
-def equilibrioAdiabaticoVolumeConstante(estimative, T,P,V,reactants_composition,T0):
+def equilibrioAdiabaticoVolumeConstante(estimative, T,P0,V,reactants_composition,T0):
     entalpy_reactants = 0
+    P = P0
     for n, h in zip(reactants_composition, interpolacaoH(T0)):
         entalpy_reactants += n*h
     while True:
@@ -224,7 +225,8 @@ def equilibrioAdiabaticoVolumeConstante(estimative, T,P,V,reactants_composition,
             break
         else:
             T=nextTemp
-            P = total_mols*Ru*T/V
+            print(T,P)
+            P = total_mols*Ru*T/(V*101.325)
             estimative=sol
             
     return nextTemp,P,sol,total_mols
@@ -371,10 +373,13 @@ if __name__ == '__main__'   :
     estimative=stringToFloat(input("estimativa inicial para a composicao de equilibrio [Combustivel,O2,H2O,CO2,CO,O,N,NO2,NO,OH,H2,H,N2]: "))
     bnds = bounds(estimative)
     entalpy_reactants=interpolacaoH(T0)[0]*mols_c+O*interpolacaoH(T0)[1]+NI*interpolacaoH(T0)[12]
-
+    reactants_composition = [mols_c,O,0,0,0,0,0,0,0,0,0,0,NI]
+    total_mols = mols_c + O + NI
+    
     P=P0
     T=estimateT
-   
+    V = total_mols*Ru*T0/(P0* 101.325)
+    
 ##composicao final
     sol = equilibrium(estimative,T,P)
     total_mols=sum(sol)
@@ -384,7 +389,7 @@ if __name__ == '__main__'   :
                         'H2O': sol[2] * mass[2] / total_mass, 'CO2': sol[3] * mass[3] / total_mass, 'CO': sol[4] * mass[4] / total_mass,'O':sol[5] * mass[5] / total_mass,'N':sol[6] * mass[6] / total_mass,'NO2':sol[7] * mass[7] / total_mass,'NO':sol[8] * mass[8] / total_mass,'OH':sol[9] * mass[9] / total_mass,'H2':sol[10] * mass[10] / total_mass,'H':sol[11] * mass[11] / total_mass,'N2':sol[12] * mass[12] / total_mass}})
     print({'MOLAR_FRACTION':{'Combustivel': sol[0] / total_mols, 'O2': sol[1] / total_mols, 'H2O': sol[2] / total_mols, 'CO2':sol[3]/total_mols, 'CO':sol[4]/total_mols,'O':sol[5]/ total_mols,'N':sol[6]/total_mols,'NO2':sol[7]/total_mols,'NO':sol[8]/ total_mols,'OH':sol[9]/ total_mols,'H2':sol[10]/ total_mols,'H':sol[11]/ total_mols,'N2':sol[12]/ total_mols}})
 #
-    adiab=equilibrioAdiabatico(estimative,T,P,entalpy_reactants)
+    adiab=equilibrioAdiabaticoVolumeConstante(estimative,T,P,V,reactants_composition,T)
     print({"Tad":adiab[0],"composicaoAdiab":{"Combustivel":adiab[2][0],"O2":adiab[2][1],"H2O":adiab[2][2],"CO2":adiab[2][3],"CO":adiab[2][4],"O":adiab[2][5],"N":adiab[2][6],"NO2":adiab[2][7],"NO":adiab[2][8],"OH":adiab[2][9],"H2":adiab[2][10],"H":adiab[2][11],"N2":adiab[2][12]}})
     
 else:
