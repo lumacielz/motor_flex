@@ -1,8 +1,8 @@
-from scipy.optimize import minimize
+from scipy.optimize import minimize,curve_fit
 import sympy as sp
 import pandas as pd
 from decimal import  Decimal
-from math import radians
+from math import radians,log
 import numpy as np
 import sys
 
@@ -22,6 +22,16 @@ def composicaoCombustivel(c):
     coef[1:]=(coef[1].split("O"))
     return list(map(lambda x: float(x),coef))
 
+def Cps(Ts):
+    CpH2O = 0.14904476*log(Ts)**5 -5.60452380*log(Ts)**4 + 81.54220310*log(Ts)**3 -573.43988184*log(Ts)**2 + 1954.64102748*log(Ts) -2558.72544088
+    CpC2H5OH = 1.40634*log(Ts)**5 -45.60008*log(Ts)**4 + 578.32500*log(Ts)**3 -3579.01508*log(Ts)**2+ 10834.12151 *log(Ts)-12834.47773
+    CpC8H18 = 4.9695987*log(Ts)**5 -157.61132*log(Ts)**4 +1966.430702 *log(Ts)**3 -12036.09466*log(Ts)**2 +36241.19904*log(Ts)-43029.69896
+    return CpC8H18*oc+et*CpC2H5OH+h2o*CpH2O
+
+def fitLog(Ts, a0,a1,a2,a3,a4,a5):
+    return a0+a1*np.log(Ts)+a2*np.log(Ts)**2+a3*np.log(Ts)**3+a4*np.log(Ts)**4+a5*np.log(Ts)**5
+
+tempRange = np.linspace(298.15,3000,1000)
 
 Ru=8.314
 
@@ -199,7 +209,7 @@ def equilibrioAdiabatico(estimative,T,P,reactants_composition,T0):
         
         nextTemp=float(temperaturaAdiabatica(sol,T,T+2,entalpy_reactants))
         
-        if abs(nextTemp-T)<0.2:
+        if abs(nextTemp-T)<0.1:
             break
         else:
             T=nextTemp
@@ -217,19 +227,17 @@ def equilibrioAdiabaticoVolumeConstante(estimative, T,P0,V,reactants_composition
     while True:
         sol = equilibrium(estimative, T,P)
         total_mols = sum(i for i in sol)
-        #molar_fraction = [s/total_mols for s in sol]
         
         nextTemp=float(temperaturaAdiabatica(sol,T,T+2,entalpy_reactants))
         
-        if abs(nextTemp-T)<0.2:
+        if abs(nextTemp-T)<0.5:
             break
         else:
             T=nextTemp
-            print(T,P)
             P = total_mols*Ru*T/(V*101.325)
             estimative=sol
-            
-    return nextTemp,P,sol,total_mols
+    molar_fractions = [s/total_mols for s in sol]      
+    return nextTemp,sol,molar_fractions,P,total_mols
 
 
 def bounds (composicao):
@@ -249,52 +257,39 @@ if __name__ == '__main__'   :
     combustivel=input("combustível [gasolina,etanol,GNV,H2,outro]")
     while True:
         if combustivel=="gasolina":
-        #combustivel equivalente
-        #    carb=6.67
-        #    h=12.8
-        #    o=0.533  
-        #    n=0
-        #    OC=9.6
-        #    complete_combustion_H2O=6.4
-        #    complete_combustion_CO2=6.67
+            ocV = float(input("%V octano: "))
+            etV = float(input("%V etanol: "))
+            n_oc = ocV*703/(114.232)
+            n_et = etV*789/(46.069)
             
-            c,h,o,n=8*0.5462+2*0.4538,18*0.5462+0.4538*6,0.4538,0
+            oc = n_oc/(n_oc+n_et)
+            et = n_et/(n_oc+n_et)
             
-            a0=-8102.9675849653
-            a1=7963.204888950
-            a2=-2923.24238668569
-            a3=509.144026930886
-            a4=-42.2764373650608
-            a5=1.35175803975684
+            h2o=0
+            c,h,o,n=8*oc+2*et,18*oc+et*6,et,0
+            
+            cps = [Cps(t) for t in tempRange]
+            a0,a1,a2,a3,a4,a5=curve_fit(fitLog,tempRange,cps)[0]
             Cp=a0+a1*sp.log(Ts)+a2*sp.log(Ts)**2+a3*sp.log(Ts)**3+a4*sp.log(Ts)**4+a5*sp.log(Ts)**5  #J/molK
             
-            h0_comb=0.5462*(-208450)+0.4538*(-235310)
-            s0_comb=0.5462*(466.514)+0.4538*(282.444)
+            h0_comb=oc*(-208450)+et*(-235310)
+            s0_comb=oc*(466.514)+et*(282.444)
             mcomb=(12*c+h+16*o)
             
             break
             
         elif combustivel=="alcool":
-            #combustivel equivalente
-        #    OC=3.2
-        #    carb=2.15
-        #    h=6.62
-        #    o=1.23
-        #    complete_combustion_CO2=2.15
-        #    complete_combustion_H2O=3.31
+            et = 0.938756707502278
+            h2o = 0.06124329249772197
+            oc=0
+            c,h,o,n = et*2,6*et+2*h2o,h2o+et,0
             
-            c,h,o,n=1.709,5.418801,0
-        
-            a0=-12482.8740213179
-            a1=10263.4623453335
-            a2=-3316.7850402598
-            a3=526.309291795851
-            a4=-40.8869367350809
-            a5=1.24555084441151
+            cps = [Cps(t) for t in tempRange]
+            a0,a1,a2,a3,a4,a5=curve_fit(fitLog,tempRange,cps)[0]
             Cp=a0+a1*sp.log(Ts)+a2*sp.log(Ts)**2+a3*sp.log(Ts)**3+a4*sp.log(Ts)**4+a5*sp.log(Ts)**5  #J/molK
             
-            h0_comb=0.8547*(-235310)+0.1453*(-241826)
-            s0_comb=0.8547*(282.444)+0.1453*(188.835)
+            h0_comb=et*(-235310)+h2o*(-241826)
+            s0_comb=et*(282.444)+h2o*(188.835)
             mcomb=(12*c+h+16*o)
             break
         
@@ -304,11 +299,11 @@ if __name__ == '__main__'   :
             prop=1.115*10**-2
             but=0.125*10**-2
             co2=0.255*10**-2
-            r=0.765*10**-2
+            n=0.765*10**-2
             c=met+2*et+3*prop+4*but+co2
             h=met*4+et*6+prop*8+but*10
             o=co2*2
-            n=r
+            
         
             a0=-12713.9307245771
             a1=10272.7734235011
@@ -330,9 +325,9 @@ if __name__ == '__main__'   :
             s0_co2=213.795
             h0_n2=0
             s0_n2=191.609
-            h0_comb=met*h0_met+et*h0_et+prop*h0_prop+but*h0_but+co2*h0_co2+r*h0_n2
-            s0_comb=met*s0_met+et*s0_et+prop*s0_prop+but*s0_but+co2*s0_co2+r*s0_n2
-            mcomb=(met*16+et*30+prop*44+but*58+co2*44+28*r)
+            h0_comb=met*h0_met+et*h0_et+prop*h0_prop+but*h0_but+co2*h0_co2+n*h0_n2
+            s0_comb=met*s0_met+et*s0_et+prop*s0_prop+but*s0_but+co2*s0_co2+n*s0_n2
+            mcomb=(met*16+et*30+prop*44+but*58+co2*44+28*n)
             break 
         
         elif combustivel == "H2":
@@ -341,7 +336,8 @@ if __name__ == '__main__'   :
             break
         elif combustivel == "outro":
             molecularComposition = input("digite a composição do combustível na forma CnHnOn: ")
-            c,h,o,n=composicaoCombustivel(molecularComposition),0
+            c,h,o=composicaoCombustivel(molecularComposition)
+            n=0
             mcomb=c*12+h+o*16
             h0_comb=float(input("entalpia de formação do combustivel: "))
             s0_comb=float(input("entropia de formação do combustivel: "))
@@ -379,18 +375,37 @@ if __name__ == '__main__'   :
     P=P0
     T=estimateT
     V = total_mols*Ru*T0/(P0* 101.325)
-    
-##composicao final
-    sol = equilibrium(estimative,T,P)
-    total_mols=sum(sol)
-    print("COMPOSICAO EQUILIBRIO: " +  str({'Combustivel': sol[0] , 'O2': sol[1],
-       'H2O': sol[2] , 'CO2': sol[3] , 'CO': sol[4] ,'O':sol[5] ,'N':sol[6] ,'NO2':sol[7] ,'NO':sol[8],'OH':sol[9] ,'H2':sol[10] ,'H':sol[11] ,'N2':sol[12]}))
-    print({'MASS_FRACTION':{'Combustivel': sol[0] * mass[0] / total_mass, 'O2': sol[1] * mass[1] / total_mass,
-                        'H2O': sol[2] * mass[2] / total_mass, 'CO2': sol[3] * mass[3] / total_mass, 'CO': sol[4] * mass[4] / total_mass,'O':sol[5] * mass[5] / total_mass,'N':sol[6] * mass[6] / total_mass,'NO2':sol[7] * mass[7] / total_mass,'NO':sol[8] * mass[8] / total_mass,'OH':sol[9] * mass[9] / total_mass,'H2':sol[10] * mass[10] / total_mass,'H':sol[11] * mass[11] / total_mass,'N2':sol[12] * mass[12] / total_mass}})
-    print({'MOLAR_FRACTION':{'Combustivel': sol[0] / total_mols, 'O2': sol[1] / total_mols, 'H2O': sol[2] / total_mols, 'CO2':sol[3]/total_mols, 'CO':sol[4]/total_mols,'O':sol[5]/ total_mols,'N':sol[6]/total_mols,'NO2':sol[7]/total_mols,'NO':sol[8]/ total_mols,'OH':sol[9]/ total_mols,'H2':sol[10]/ total_mols,'H':sol[11]/ total_mols,'N2':sol[12]/ total_mols}})
-#
-    adiab=equilibrioAdiabaticoVolumeConstante(estimative,T,P,V,reactants_composition,T)
-    print({"Tad":adiab[0],"composicaoAdiab":{"Combustivel":adiab[2][0],"O2":adiab[2][1],"H2O":adiab[2][2],"CO2":adiab[2][3],"CO":adiab[2][4],"O":adiab[2][5],"N":adiab[2][6],"NO2":adiab[2][7],"NO":adiab[2][8],"OH":adiab[2][9],"H2":adiab[2][10],"H":adiab[2][11],"N2":adiab[2][12]}})
+    names = ['Combustivel','O2','H2O','CO2','CO','O','N','NO2','NO','OH','H2','H','N2']
+#1,9.6,1e-15,1e-15,1e-15,1e-15,1e-15,1e-15,1e-15,1e-15,1e-15,1e-15,36.096   
+#composicao final
+    restricao = input("restrições [P-T] | [H-P] | [H-V]: ")
+    if restricao == "[P-T]":
+        sol = equilibrium(estimative,T,P)
+        total_mols=sum(sol)
+        
+        print("\n ------------------COMPOSICAO EQUILIBRIO ------------------- \nMOLES: ")
+        for i in range(len(names)):
+            print(names[i] + ': ' + str(sol[i]))
+        print('\n MASS FRACTION:')   
+        for i in range(len(names)):
+            print(names[i] + ': ' + str(sol[i]*mass[i]/total_mass))
+        print('\n MOLAR FRACTION:')   
+        for i in range(len(names)):
+            print(names[i] + ': ' + str(sol[i]/total_mols))
+    if restricao == "[H-P]":
+        adiab=equilibrioAdiabatico(estimative,T,P,reactants_composition,T0)
+        
+        print('\n ------------------TEMPERATURA ADIABATICA----------------------')
+        print("Tad: " + str(adiab[0]))
+        for n in range(len(names)):
+            print(names[n] + ': ' + str(adiab[2][n]))
+    if restricao == "[H-V]":
+        adiab=equilibrioAdiabaticoVolumeConstante(estimative,T,P,V,reactants_composition,T0)
+        
+        print('\n ------------------TEMPERATURA ADIABATICA----------------------')
+        print("Tad: " + str(adiab[0]))
+        for n in range(len(names)):
+            print(names[n] + ': ' + str(adiab[2][n]))
     
 else:
     from constants import *
