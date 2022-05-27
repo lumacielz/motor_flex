@@ -351,7 +351,6 @@ def motorCombKinects(t,x,Pm,concentration0,concentration1,dt):
     
     dQ = heatRelease(composition0,composition1,T)/dt
     
-    
     k,dkdT= K(T,composition0)
     
     dWdt=P*dVdt  #joule

@@ -64,10 +64,10 @@ def ODEequilibrium1D(ti,tj,tf,tk,x0,reactants_composition,estimative,dt):
     for j in range (len(ti)-1,len(ti)+len(tj)-1):
         ts=[tk[j],tk[j+1]]
         
-        if dvdt(tk[j]) < 1e-5:
-            burned_composition = equilibrioAdiabaticoVolumeConstante(estimative, T[j],P[j]*9.869*10**-6,volume(tk[j]),composition0,T[j])[1]
-        else:
-            burned_composition = equilibrioAdiabatico(estimative, T[j],P[j]*9.869*10**-6,composition0,T[j])[1]
+#        if dvdt(tk[j]) < 1e-5:
+#            burned_composition = equilibrioAdiabaticoVolumeConstante(estimative, T[j],P[j]*9.869*10**-6,volume(tk[j]),composition0,T[j])[1]
+#        else:
+        burned_composition = equilibrioAdiabatico(estimative, T[j],P[j]*9.869*10**-6,composition0,T[j])[1]
        # burnedComposition = equilibrium(estimative, T[j],P[j]*9.869*10**-6)
         
         x=solve_ivp(motorCombEquilibrium,ts,x0,args=(P1[j],composition0,burned_composition,dt),method='DOP853').y
@@ -145,15 +145,15 @@ def ODEequilibrium2D(ti,tj,tf,tk,x0,reactants_composition,estimative,dt):
         x0=[x[0][-1],x[1][-1],x[2][-1],x[3][-1],x[4][-1]]
     
     x0 = [P0,T0,Qa0,Qp0,W0]
-    composition0 = reactants_composition
+    mixture_composition0 = reactants_composition
     
     #fechamento da valvula ao inicio da combustao
     for i in range(len(ti)-1): #range(0,98)
         ts=[ti[i],ti[i+1]]
         x=solve_ivp(motor,ts,x0,args=(0,),method='DOP853').y
         
-        ke = K(T[i],composition0)[0]
-        k_eval.append(ke)
+#        ke = K(T[i],mixture_composition0)[0]
+#        k_eval.append(ke)
         
         P[i+1]=x[0][-1] #ultima linha,coluna1
         T[i+1]=x[1][-1]
@@ -166,49 +166,64 @@ def ODEequilibrium2D(ti,tj,tf,tk,x0,reactants_composition,estimative,dt):
         compositions[i] = np.asarray(reactants_composition)/sum(reactants_composition)
    
    #combustao
+    m_bn =0
+    Xbn = molarToMassFraction(reactants_composition,Molecular_Mass)
     for j in range (len(ti)-1,len(ti)+len(tj)-1):
         ts=[tk[j],tk[j+1]]
         
+        #massa queimada
+        dxdt = dx(tk[j])
+        m_b = m_m * dxdt * dt
         
-        if dvdt(tk[j]) < 1e-5:
-            burnedComposition = equilibrioAdiabaticoVolumeConstante(estimative, T[j],P[j]*9.869*10**-6,volume(tk[j]),composition0,T[j])
-        else:
-            burnedComposition = equilibrioAdiabatico(estimative, T[j],P[j]*9.869*10**-6,composition0,T[j])
-       # burnedComposition = equilibrium(estimative, T[j],P[j]*9.869*10**-6)
-        next_composition = wiebe(tk[j])*burnedComposition[1] + (1-wiebe(tk[j]))*reactants_composition
+#        if dvdt(tk[j]) < 1e-5:
+#            burnedComposition = equilibrioAdiabaticoVolumeConstante(estimative, T[j],P[j]*9.869*10**-6,volume(tk[j]),mixture_composition0,T[j])
+#        else:
+        burnedComposition = equilibrioAdiabatico(estimative, T[j],P[j]*9.869*10**-6,mixture_composition0,T[j])
+       #burnedComposition = equilibrium(estimative, T[j],P[j]*9.869*10**-6)
+       
+        products_massFraction = m_bn/(m_bn+m_b) * Xbn + m_b/(m_bn+m_b) * burnedComposition['mass fraction']
+        products_composition = massToComposition(products_massFraction*(m_bn+m_b),Molecular_Mass)
+        mixture_composition1 = wiebe(tk[j])*products_composition + (1-wiebe(tk[j]))*reactants_composition
         
-        x=solve_ivp(motorCombEquilibrium,ts,x0,args=(P1[j],composition0,next_composition,dt),method='DOP853').y
+        x=solve_ivp(motorCombEquilibrium,ts,x0,args=(P1[j],mixture_composition0,mixture_composition1,dt),method='DOP853').y
         
-        ke = K(T[j],composition0)[0]
-        k_eval.append(ke)
+#        ke = K(T[j],mixture_composition0)[0]
+#        k_eval.append(ke)
         
         P[j+1]=x[0][-1]
         T[j+1]=x[1][-1]
         Qa[j+1]=x[2][-1]
         Qp[j+1]=x[3][-1]
         W[j+1]=x[4][-1]
-        print(next_composition[0])
-        composition0 = next_composition
-        estimative = composition0
         
-        compositions[j] = np.asarray(next_composition)/sum(next_composition)
+        mixture_composition0 = mixture_composition1
+        estimative = burnedComposition['moles']
+        m_bn += m_b
+        Xbn = products_massFraction
+        compositions[j] = mixture_composition1/sum(mixture_composition1)
         
         x0=[x[0][-1],x[1][-1],x[2][-1],x[3][-1],x[4][-1]]
         
     
     for f in range(len(tj)+len(ti)-1,len(tk)-1): #200 ao 298
         ts=[tk[f],tk[f+1]]
+        
+        dxdt = dx(tk[f])
+        m_b = m_m * dxdt * dt
+        
         if dvdt(tk[f]) < 1e-5:
-            burnedComposition = equilibrioAdiabaticoVolumeConstante(estimative, T[j],P[j]*9.869*10**-6,volume(tk[f]),composition0,T[f])
+            burnedComposition = equilibrioAdiabaticoVolumeConstante(estimative, T[f],P[f]*9.869*10**-6,volume(tk[f]),mixture_composition0,T[f])
         else:
-            burnedComposition = equilibrioAdiabatico(estimative, T[f],P[f]*9.869*10**-6,composition0,T[f])
+            burnedComposition = equilibrioAdiabatico(estimative, T[f],P[f]*9.869*10**-6,mixture_composition0,T[f])
     
-        next_composition = wiebe(tk[f])*burnedComposition[1] + (1-wiebe(tk[f]))*reactants_composition
+        products_massFraction = m_bn/(m_bn+m_b) * Xbn + m_b/(m_bn+m_b) * burnedComposition['mass fraction']
+        products_composition = massToComposition(products_massFraction*(m_bn+m_b),Molecular_Mass)
+        mixture_composition1 = wiebe(tk[f])*products_composition + (1-wiebe(tk[f]))*reactants_composition
         
-        x=solve_ivp(motorCombEquilibrium,ts,x0,args=(P1[f],composition0,next_composition,dt),method='DOP853').y
+        x=solve_ivp(motorCombEquilibrium,ts,x0,args=(P1[f],mixture_composition0,mixture_composition1,dt),method='DOP853').y
         
-        ke = K(T[f],composition0)[0]
-        k_eval.append(ke)
+#        ke = K(T[f],mixture_composition0)[0]
+#        k_eval.append(ke)
         
         P[f+1]=x[0][-1]
         T[f+1]=x[1][-1]
@@ -216,10 +231,11 @@ def ODEequilibrium2D(ti,tj,tf,tk,x0,reactants_composition,estimative,dt):
         Qp[f+1]=x[3][-1]
         W[f+1]=x[4][-1]
         
-        composition0 = next_composition
-        estimative = composition0
-        
-        compositions[f] = np.asarray(next_composition)/sum(next_composition)
+        mixture_composition0 = mixture_composition1
+        estimative = burnedComposition['moles']
+        m_bn += m_b
+        Xbn = products_massFraction
+        compositions[f] = mixture_composition1/sum(mixture_composition1)
         
         x0=[x[0][-1],x[1][-1],x[2][-1],x[3][-1],x[4][-1]]
     

@@ -109,8 +109,8 @@ while True:
 #        a4=-42.2764373650608
 #        a5=1.35175803975684
 
-        n_oc = 0.73*703/(114.232)
-        n_et = 0.27*789/(46.069)
+        n_oc = 0.77*703/(114.232)
+        n_et = 0.23*789/(46.069)
         oc = n_oc/(n_oc+n_et)
         et = n_et/(n_oc+n_et)
  
@@ -261,7 +261,7 @@ Rg=Ru/M_m #constante dos gases
 #coefwiebe=input('Coeficientes da equação de Wiebe m , a: ').split(',')
 #m=float(coefwiebe[0])
 #a=float(coefwiebe[1])
-m,a=1,2
+m,a=2,5
 ef=0.87
 Qtot=ef*m_c*PCI #kJ
 #spark = 0
@@ -274,7 +274,7 @@ X0 = mols_c/(mols_c+O+NI)
 #composicao molar inicial
 reactants_composition = np.asarray([mols_c,O,0,0,0,0,0,0,0,0,0,0,NI])
 estimative = np.asarray([mols_c,OC*mols_c,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,(NI+n*mols_c)])
-mass=[M_c,32,18,44,28,16,14,46,30,17,2,1,28]
+Molecular_Mass=[M_c,31.999,18.015,44.01,28.01,16,14.007,46.005,30.006,17.007,2.016,1.008,28.013]
 Ts = sp.symbols('Ts')
 Cp=a0+a1*sp.log(Ts)+a2*sp.log(Ts)**2+a3*sp.log(Ts)**3+a4*sp.log(Ts)**4+a5*sp.log(Ts)**5
 
