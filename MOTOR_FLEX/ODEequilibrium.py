@@ -212,7 +212,11 @@ def ODEequilibrium2D(ti,tj,tf,tk,x0,reactants_composition,estimative,dt):
         m_b = m_m * dxdt * dt
         
         if dvdt(tk[f]) < 1e-5:
+<<<<<<< HEAD
             burnedComposition = equilibrioAdiabaticoVolumeConstante(estimative, T[f],P[f]*9.869*10**-6,volume(tk[f]),mixture_composition0,T[f])
+=======
+            burnedComposition = equilibrioAdiabaticoVolumeConstante(estimative, T[f],P[f]*9.869*10**-6,volume(tk[f]),composition0,T[f])
+>>>>>>> e937cf1e35b222b5e1aa657068fc4cc59669e20d
         else:
             burnedComposition = equilibrioAdiabatico(estimative, T[f],P[f]*9.869*10**-6,mixture_composition0,T[f])
     
