@@ -199,7 +199,7 @@ def ODEequilibrium2D(ti,tj,tf,tk,x0,reactants_composition,estimative,dt):
     for f in range(len(tj)+len(ti)-1,len(tk)-1): #200 ao 298
         ts=[tk[f],tk[f+1]]
         if dvdt(tk[f]) < 1e-5:
-            burnedComposition = equilibrioAdiabaticoVolumeConstante(estimative, T[j],P[j]*9.869*10**-6,volume(tk[f]),composition0,T[f])
+            burnedComposition = equilibrioAdiabaticoVolumeConstante(estimative, T[f],P[f]*9.869*10**-6,volume(tk[f]),composition0,T[f])
         else:
             burnedComposition = equilibrioAdiabatico(estimative, T[f],P[f]*9.869*10**-6,composition0,T[f])
     
