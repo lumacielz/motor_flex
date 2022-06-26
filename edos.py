@@ -115,6 +115,8 @@ def dc (t,Concentrations,T):
     ka=Ae*np.exp(-Ea/T)*np.sign(C)*abs(C)**me*O2**ne
     kbf=10**14.6*exp(-20131/T)*CO*H2O**0.5*O2**0.25
     kbr=5*10**8*exp(-20131/T)*CO2
+    kbf=3.98*10**8*np.exp(-10/(1.987*10**-3)/T)*CO*H2O**0.5*O2**0.25
+    kbr=6.16*10**13*np.sign(T)*abs(T)**-0.97*np.exp(-78.4/(1.987*10**-3)/T)*CO2*H2O**0.5*O2**-0.25
     
     dC=-ka/N
     dO2=(-(c/2+h/4)*ka-0.5*c*kbf+c*0.5*kbr)/N
@@ -137,8 +139,9 @@ def twoStepKinects (Concentrations0,ts,Temperature,Pressure):
     next_concentration=[C,O2,CO,CO2,H2O,N2]
     
     molar_fractions = np.asarray(next_concentration)*Ru*Temperature*10**6/Pressure
+    #molar_fractions = np.asarray(Concentrations0)*Ru*Temperature*10**6/Pressure
     M_m=0
-    for M,ys in zip(mass,molar_fractions):
+    for M,ys in zip(Molecular_Mass_Kinects,molar_fractions):
         M_m += M*ys
         
     mass_fraction=molar_fractions[0]*(M_c/M_m)
@@ -146,6 +149,24 @@ def twoStepKinects (Concentrations0,ts,Temperature,Pressure):
     dx = (-dc(ts[-1],next_concentration,Temperature)[0]*Ru*Temperature/Pressure)*(M_c/M_m)*10**6/Y0
 
     return mass_burned,dx,next_concentration,molar_fractions*m_m/M_m
+
+def twoStepKinectsVolume (Concentrations0,ts,Temperature,Pressure):
+    concentration = solve_ivp(dc,ts,Concentrations0,args=(Temperature,)).y
+        
+    C = concentration[0][-1]
+    O2=concentration[1][-1]
+    CO = concentration[2][-1]
+    CO2=concentration[3][-1]
+    H2O = concentration[4][-1]
+    N2 = concentration[5][-1]
+    next_concentration=[C,O2,CO,CO2,H2O,N2]
+    
+    molar = np.asarray(next_concentration)*10**3*volume(ts[-1])
+
+    mass_burned=(m_c-molar[0]*M_c)/m_c
+    dx = -dc(ts[-1],next_concentration,Temperature)[0]*10**3*volume(ts[-1])*M_c/m_c
+
+    return mass_burned,dx,next_concentration
 
 def woschni(P,Pm,T):
     vg=2.28*vp+0.00324*(P-Pm)*Vd*T0/(P0*V0)
@@ -253,58 +274,7 @@ def motorComb(t,x,Pm,xt,dxdt,spark):
     dPdt=((((Qtot*dxdt-fcor*dQpdt+spark)-P*dVdt)*(k-1))-P*dVdt+(P*V*dkdT*dTdt/(k-1)))/V
     dQadt=P*dVdt+(1/(k-1))*(V*dPdt+P*dVdt-(P*V*dkdT*dTdt/(k-1)))
     
-    return(dPdt,dTdt,dQadt,dQpdt,dWdt)      
-
-def motoredEq(t,x,reactants_composition):
-    P=x[0]
-    T=x[1]
-    Qa=x[2]
-    Qp=x[3]
-    W=x[4]
-    
-    A=area(t)
-    V=volume(t)
-    dVdt=dvdt(t)  #printar dvdt e ver os intervalos em que e desprezivel
-    
-    k, dkdT=K(T, reactants_composition)
-    
-    dxdt=0
-    h=0
-    
-    dWdt=P*dVdt  #joule
-    dQpdt=0 #rads por s
-    dTdt=(((1/(P*V))*(Qtot*dxdt-fcor*dQpdt)-dVdt/V)*(k-1))/((1/T)-(1/(k-1))*dkdT)
-    dPdt=((((Qtot*dxdt-fcor*dQpdt)-P*dVdt)*(k-1))-P*dVdt+(P*V*dkdT*dTdt/(k-1)))/V
-    dQadt=P*dVdt+(1/(k-1))*(V*dPdt+P*dVdt-(P*V*dkdT*dTdt/(k-1)))
-    
-    return(dPdt,dTdt,dQadt,dQpdt,dWdt)  
-
-    
-def motorEq(t,x,reactants_composition):
-    P=x[0]
-    T=x[1]
-    Qa=x[2]
-    Qp=x[3]
-    W=x[4]
-    
-    A=area(t)
-    V=volume(t)
-    dVdt=dvdt(t)
-    
-    dxdt=0
-    
-    k, dkdT=K(T, reactants_composition)
-    
-    vg=2.28*vp
-    h=3.26*D**(-0.2)*(P*10**-3)**0.8*T**(-0.55)*vg**0.8
-    
-    dWdt=P*dVdt  #joule
-    dQpdt=(h*A*(T-Tp)/(N*fcor)) #rads por s
-    dTdt=(((1/(P*V))*(Qtot*dxdt-fcor*dQpdt)-dVdt/V)*(k-1))/((1/T)-(1/(k-1))*dkdT)
-    dPdt=((((Qtot*dxdt-fcor*dQpdt)-P*dVdt)*(k-1))-P*dVdt+(P*V*dkdT*dTdt/(k-1)))/V
-    dQadt=P*dVdt+(1/(k-1))*(V*dPdt+P*dVdt-(P*V*dkdT*dTdt/(k-1)))
-    
-    return(dPdt,dTdt,dQadt,dQpdt,dWdt)  
+    return(dPdt,dTdt,dQadt,dQpdt,dWdt)       
 
 def motorCombEquilibrium(t,x,Pm,composition0,composition1,dt):
     P=x[0]

@@ -64,6 +64,7 @@ def ODEwiebe(ti,tj,tf,tk,x0):
         
         xt = wiebe(tk[j])
         dxdt = dx(tk[j])
+        print(dxdt)
         
         ke = KReag(T[j])*(1-xt)+KProd(T[j])*xt
         k_eval.append(ke)
@@ -103,4 +104,4 @@ def ODEwiebe(ti,tj,tf,tk,x0):
         
         massFraction[f+1] = xt
         
-    return P,T,Qa,Qp,W,massFraction,k_eval
+    return P,T,Qa,Qp,W,massFraction,k_eval,P1

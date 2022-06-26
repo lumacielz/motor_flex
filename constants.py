@@ -15,8 +15,9 @@ from scipy.optimize import curve_fit
 
 
 #dados da geometria do motor
-#dados_motor=input('Dados do Motor: ').split(',')
-dados_motor=11,0.144,0.081,0.0864,4
+dados_motor=input('Dados do Motor: ').split(',')
+#motor - tadeu
+#dados_motor=11,0.144,0.081,0.0864,4
 
 r=float(dados_motor[0])
 L=float(dados_motor[1])
@@ -35,15 +36,10 @@ else:
     fcor=1
 
 print('fcor = '+str(fcor))
-#teta0d=float(input("ângulo de fechamento da válvula de admissão [em graus]: "))
-#teta_combd=float(input("ângulo de início da combustão[em graus]: "))
-#delta_tetad=float(input("duração da combustão[em graus]: "))
-#tetafd=float(input("ângulo de abertura da válvula de escape[em graus] "))
-
-teta0d=-164
-teta_combd=-4
-delta_tetad=37.6
-tetafd=146
+teta0d=float(input("ângulo de fechamento da válvula de admissão [em graus]: "))
+teta_combd=float(input("ângulo de início da combustão[em graus]: "))
+delta_tetad=float(input("duração da combustão[em graus]: "))
+tetafd=float(input("ângulo de abertura da válvula de escape[em graus] "))
 
 teta0=radians(teta0d)
 tetaf=radians(tetafd)
@@ -51,15 +47,10 @@ teta_comb=radians(teta_combd)
 delta_teta=radians(delta_tetad)
 
 #condicoes de operacao
-#Var=float(input("Vazão de ar[kg/h]: "))
-#P0=float(input("Pressão no ângulo de fechamento: "))*10**3
-#Tp=float(input("Temperatura das paredes: "))
-#rotacao=float(input("rotação do motor: "))
-
-Var=89.25
-P0=67.49*10**3
-Tp=373
-rotacao=2493
+Var=float(input("Vazão de ar[kg/h]: "))
+P0=float(input("Pressão no ângulo de fechamento: "))*10**3
+Tp=float(input("Temperatura das paredes: "))
+rotacao=float(input("rotação do motor: "))
 
 R=S/2 #raio do virabrequim
 N=rotacao*2*np.pi/60 #rad/s
@@ -69,9 +60,7 @@ vp=2*S*N #velocidade do pistão m/s
 Ru=8.314 #kJ/kmolK
 M_air = 28.962
 
-#combustivel = "gasolina"
-#combustivel=input("Com qual combustível deseja operar?  ")
-combustivel="gasolina"
+
 def stringToFloat(inputLista):
     lista=[]
     for i in inputLista.split(","):
@@ -95,22 +84,13 @@ def fitLog(Ts, a0,a1,a2,a3,a4,a5):
 tempRange = np.linspace(298.15,3000,1000)
 
 while True:
+    combustivel=input("Com qual combustível deseja operar?  ")
     if combustivel=="gasolina":
-    #combustivel equivalente
-#        c=6.67
-#        h=12.8
-#        o=0.533  
-#        n=0
+        ocV = float(input("%V octano: "))
+        etV = float(input("%V etanol: "))
         
-#        a0=-8102.9675849653
-#        a1=7963.2048889506
-#        a2=-2923.24238668569
-#        a3=509.144026930886
-#        a4=-42.2764373650608
-#        a5=1.35175803975684
-
-        n_oc = 0.77*703/(114.232)
-        n_et = 0.23*789/(46.069)
+        n_oc = ocV*703/(114.232)
+        n_et = etV*789/(46.069)
         oc = n_oc/(n_oc+n_et)
         et = n_et/(n_oc+n_et)
  
@@ -122,9 +102,7 @@ while True:
 
         h0_comb=oc*(-208450)+et*(-235310)
         s0_comb=oc*(466.514)+et*(282.444)
-        #mcomb=(12*c+h+16*o)
-        
-        #PCI=39249*10**3 #kJ/kg
+
         PCI = oc*44430*10**3 + et*26810*10**3
         
         Ae=(5.7*10**11) #octano
@@ -135,18 +113,8 @@ while True:
         break
         
     elif combustivel=="alcool":
-        #combustivel equivalente
-    #    c=2.15
-    #    h=6.62
-    #    o=1.23
-    
-#        a0=-12482.8740213179
-#        a1=10263.4623453335
-#        a2=-3316.7850402598
-#        a3=526.309291795851
-#        a4=-40.8869367350809
-#        a5=1.24555084441151
-        
+#        et=1
+#        h2o=0
         et = 0.938756707502278
         h2o = 0.06124329249772197
         oc=0
@@ -157,8 +125,7 @@ while True:
     
         h0_comb=et*(-235310)+h2o*(-241826)
         s0_comb=et*(282.444)+h2o*(188.835)
-       # mcomb=(12*c+h+16*o)
-        
+
         PCI= 24804*10**3
         
         Ae=(1.8*10**12) #etanol
@@ -169,12 +136,14 @@ while True:
         break
     
     elif combustivel=="GNV":
+        
         met=0.92285
         et=5.455*10**-2
         prop=1.115*10**-2
         but=0.125*10**-2
         co2=0.255*10**-2
         n=0.765*10**-2
+       # met,et,prop,but,co2,n=1,0,0,0,0,0
         
         c=met+2*et+3*prop+4*but+co2
         h=met*4+et*6+prop*8+but*10
@@ -201,9 +170,15 @@ while True:
         s0_n2=191.609
         h0_comb=met*h0_met+et*h0_et+prop*h0_prop+but*h0_but+co2*h0_co2+n*h0_n2
         s0_comb=met*s0_met+et*s0_et+prop*s0_prop+but*s0_but+co2*s0_co2+n*s0_n2
-       # mcomb=(met*16+et*30+prop*44+but*58+co2*44+28*n)
-        
+      
         PCI = 48737*10**3
+        
+        Ae=1.59*10**13
+        beta=0
+        Ea=47.8/(1.987*10**-3)
+        me=0.7
+        ne=0.8
+        
         break 
     
     elif combustivel == "H2":
@@ -225,8 +200,10 @@ while True:
         mcomb=c*12+h+o*16
         
         PCI = float(input("Poder Calorífico Inferior: "))
-        #h0_comb=float(input("entalpia de formação do combustivel: "))
-        #s0_comb=float(input("entropia de formação do combustivel: "))
+        
+        h0_comb=float(input("entalpia de formação do combustivel: "))
+        s0_comb=float(input("entropia de formação do combustivel: "))
+        
         a0,a1,a2,a3,a4,a5=stringToFloat(input("coeficientes da equação logaritimica de Cp em funcao da temperatura: "))
      
     else:
@@ -241,6 +218,7 @@ stoichometricCO2 = c
 OC = (2*stoichometricCO2 + stoichometricH2O - o)/2 #mols de oxigenio
 stoichometricN2 = 3.76*OC+n/2
 
+#TODO verificar massa do ar
 AC = OC*(32 + 3.76 * 28.16) / M_c  #razao ar combustivel
 M_m=(M_c+OC*(32+3.76*28.16))/(1+OC+OC*3.76)  #massa molecular da mistura
 
@@ -250,7 +228,6 @@ m_air=Var/(0.5*3600*cilindros*(N/(2*np.pi))) #rot por s
 m_m=m_air/AC+m_air 
 #massa de combustivel admitida
 m_c=m_air/AC
-print(m_c)
 mols_c = m_c/M_c
 
 #fracao massica inicial
@@ -258,26 +235,30 @@ Y0 = m_c/m_m
 Rg=Ru/M_m #constante dos gases
 
 #DADOS PARA WIEBE!
-#coefwiebe=input('Coeficientes da equação de Wiebe m , a: ').split(',')
-#m=float(coefwiebe[0])
-#a=float(coefwiebe[1])
-m,a=2,5
+coefwiebe=input('Coeficientes da equação de Wiebe m , a: ').split(',')
+m=float(coefwiebe[0])
+a=float(coefwiebe[1])
+#m,a=2,5
 ef=0.87
 Qtot=ef*m_c*PCI #kJ
-#spark = 0
 
 #DADOS PARA EQUILIBRIO
 #mols de oxigenio e nitrogenio admitidos
 O=OC*mols_c
 NI=3.76*O
 X0 = mols_c/(mols_c+O+NI)
+
 #composicao molar inicial
 reactants_composition = np.asarray([mols_c,O,0,0,0,0,0,0,0,0,0,0,NI])
-estimative = np.asarray([mols_c,OC*mols_c,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,(NI+n*mols_c)])
+#comb,o2,h2o,co2,co,o,n,no2,no,oh,h2,h,n2
+estimative = np.asarray([10**-15,10**-15,stoichometricH2O*mols_c,stoichometricCO2*mols_c,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,NI])
+#estimative = np.asarray([mols_c,OC*mols_c,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,(NI+n*mols_c)])
 Molecular_Mass=[M_c,31.999,18.015,44.01,28.01,16,14.007,46.005,30.006,17.007,2.016,1.008,28.013]
+
+#TODO verificar se e necessario
 Ts = sp.symbols('Ts')
 Cp=a0+a1*sp.log(Ts)+a2*sp.log(Ts)**2+a3*sp.log(Ts)**3+a4*sp.log(Ts)**4+a5*sp.log(Ts)**5
 
 #massa para cinetica
-#mass=[M_c,32,28,44,18,28]
+Molecular_Mass_Kinects=[M_c,32,28,44,18,28]
 comp=[reactants_composition[0]]

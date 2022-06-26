@@ -5,6 +5,7 @@ from decimal import  Decimal
 from math import radians,log
 import numpy as np
 import sys
+import time
 
 file='./tabelaHS.xlsx'
 df2=pd.read_excel(file)
@@ -15,7 +16,7 @@ def stringToFloat(inputLista):
     lista=[]
     for i in inputLista.split(","):
         lista.append(float(i))
-    return lista
+    return np.asarray(lista)
 
 def molarToMassFraction(moles,molecular_mass):
     mass_c = [M*nm for M,nm in zip(molecular_mass,moles)]
@@ -204,7 +205,7 @@ def temperaturaAdiabatica(composicao,T0,T1,entalpy_reactants):
         
         nextT=T1-zero1*(T1-T0)/(zero1-zero0)
         
-        if abs(zero1)<0.2:
+        if abs(zero1)<0.5:
             break
         else:
             T0=T1
@@ -221,7 +222,7 @@ def equilibrioAdiabatico(estimative,T,P,reactants_composition,T0):
         
         nextTemp=float(temperaturaAdiabatica(sol,T,T+2,entalpy_reactants))
         
-        if abs(nextTemp-T)<0.1:
+        if abs(nextTemp-T)<0.5:
             break
         else:
             T=nextTemp
@@ -234,21 +235,21 @@ def equilibrioAdiabatico(estimative,T,P,reactants_composition,T0):
 
 cons=[{'type': 'eq', 'fun': restricaoC},{'type': 'eq', 'fun': restricaoO},{'type': 'eq', 'fun':restricaoH},{'type': 'eq', 'fun': restricaoN}]
 
-def equilibrioAdiabaticoVolumeConstante(estimative, T,P0,V,reactants_composition,T0):
+def equilibrioAdiabaticoVolumeConstante(estimative, T,P0,reactants_composition,T0):
     entalpy_reactants = 0
     P = P0
+    V = sum(reactants_composition)*Ru*T0/(P0*101.325)
     for nt, ht in zip(reactants_composition, interpolacaoH(T0)):
         entalpy_reactants += nt*ht
+        
     while True:
         sol = equilibrium(estimative, T,P)
-        
         nextTemp=float(temperaturaAdiabatica(sol,T,T+2,entalpy_reactants))
-        
+        total_mols = sum(i for i in sol)
         if abs(nextTemp-T)<0.5:
             break
         else:
             T=nextTemp
-            total_mols = sum(i for i in sol)
             P = total_mols*Ru*T/(V*101.325)
             estimative=sol
     
@@ -366,7 +367,9 @@ if __name__ == '__main__'   :
 
 
     mols_c=float(input("quantidade de combustivel: "))
+    
     oxid=input("[0] ar atmosferico [1] somente O2 ")
+    
     O=(input("quantidade de oxigenio: "))
     if O == "estequiometrica":
         stoichometricH2O = h/2
@@ -374,17 +377,21 @@ if __name__ == '__main__'   :
         O = (2*stoichometricCO2 + stoichometricH2O - o)/2 * mols_c
     else:
         O = float(O)
+        
     NI=0
     if oxid == "0":
         NI=3.76*O
+        
     M_c=12.0107*c+h*1.008+16*o+28*n
-        #comb,o2,h2o,co2,co,o,n,no2,no,oh,h2,h,n2
+    
+    #comb,o2,h2o,co2,co,o,n,no2,no,oh,h2,h,n2
     Molecular_Mass=[M_c,31.999,18.015,44.01,28.01,16,14.007,46.005,30.006,17.007,2.016,1.008,28.013]
 
-    total_mass=mols_c*M_c+32*O+NI*28
+    total_mass=mols_c*M_c+31.99*O+NI*28.013
         
     estimative=stringToFloat(input("estimativa inicial para a composicao de equilibrio [Combustivel,O2,H2O,CO2,CO,O,N,NO2,NO,OH,H2,H,N2]: "))
     bnds = bounds(estimative)
+    
     entalpy_reactants=interpolacaoH(T0)[0]*mols_c+O*interpolacaoH(T0)[1]+NI*interpolacaoH(T0)[12]
     reactants_composition = [mols_c,O,0,0,0,0,0,0,0,0,0,0,NI]
     total_mols = mols_c + O + NI
@@ -410,14 +417,25 @@ if __name__ == '__main__'   :
         for i in range(len(names)):
             print(names[i] + ': ' + str(sol[i]/total_mols))
     if restricao == "[H-P]":
+        
+        print(estimative,T,P,reactants_composition,T0)
+        start = time.time()
         adiab=equilibrioAdiabatico(estimative,T,P,reactants_composition,T0)
+        print(adiab,time.time()-start)
+        
+        estimative = np.asarray([10**-15,10**-15,stoichometricH2O*mols_c,stoichometricCO2*mols_c,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,10**-15,NI])
+        print(estimative,T,P,reactants_composition,T0)
+        start = time.time()
+        ad = equilibrioAdiabatico(estimative,T,P,reactants_composition,T0)
+        print(ad,time.time()-start)
+       
         
         print('\n ------------------TEMPERATURA ADIABATICA----------------------')
         print("Tad: " + str(adiab['Tad']))
         for n in range(len(names)):
             print(names[n] + ': ' + str(adiab['molar fraction'][n]))
     if restricao == "[H-V]":
-        adiab=equilibrioAdiabaticoVolumeConstante(estimative,T,P,V,reactants_composition,T0)
+        adiab=equilibrioAdiabaticoVolumeConstante(estimative,T,P,reactants_composition,T0)
         
         print('\n ------------------TEMPERATURA ADIABATICA----------------------')
         print("Tad: " + str(adiab['Tad']))
